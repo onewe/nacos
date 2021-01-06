@@ -108,5 +108,10 @@ public class MetricsHttpAgent implements HttpAgent {
     public String getEncode() {
         return httpAgent.getEncode();
     }
+    
+    @Override
+    public void close() throws IOException {
+        httpAgent.close();
+    }
 }
 

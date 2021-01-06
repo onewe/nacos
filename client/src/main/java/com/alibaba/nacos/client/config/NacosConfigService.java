@@ -302,6 +302,11 @@ public class NacosConfigService implements ConfigService {
         }
 
     }
+    
+    public void shutdown() throws IOException {
+        agent.close();
+        worker.close();
+    }
 
     @Override
     public String getServerStatus() {

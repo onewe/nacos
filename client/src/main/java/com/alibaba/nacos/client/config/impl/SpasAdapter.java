@@ -81,6 +81,10 @@ public class SpasAdapter {
     public static String getAk() {
         return CredentialService.getInstance().getCredential().getAccessKey();
     }
+    
+    public static void freeInstance(){
+        CredentialService.getInstance().free();
+    }
 
     public static String signWithhmacSHA1Encrypt(String encryptText, String encryptKey) {
         try {

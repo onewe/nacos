@@ -389,7 +389,15 @@ public class ServerHttpAgent implements HttpAgent {
     public String getEncode() {
         return encode;
     }
-
+    
+    @Override
+    public void close() throws IOException {
+        SpasAdapter.freeInstance();
+        if(serverListMgr != null){
+            serverListMgr.close();
+        }
+    }
+    
     @SuppressWarnings("PMD.ClassNamingShouldBeCamelRule")
     private static class STSCredential {
         @JsonProperty(value = "AccessKeyId")

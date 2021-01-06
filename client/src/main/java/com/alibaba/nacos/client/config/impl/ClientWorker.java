@@ -33,6 +33,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import com.alibaba.nacos.client.utils.TenantUtil;
 import org.slf4j.Logger;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -59,7 +60,7 @@ import static com.alibaba.nacos.api.common.Constants.WORD_SEPARATOR;
  *
  * @author Nacos
  */
-public class ClientWorker {
+public class ClientWorker implements Closeable {
 
     private static final Logger LOGGER = LogUtils.logger(ClientWorker.class);
 
@@ -479,7 +480,13 @@ public class ClientWorker {
 
         enableRemoteSyncConfig = Boolean.parseBoolean(properties.getProperty(PropertyKeyConst.ENABLE_REMOTE_SYNC_CONFIG));
     }
-
+    
+    @Override
+    public void close() throws IOException {
+        executor.shutdown();
+        executorService.shutdown();
+    }
+    
     class LongPollingRunnable implements Runnable {
         private int taskId;
 

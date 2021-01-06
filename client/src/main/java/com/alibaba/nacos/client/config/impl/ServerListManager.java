@@ -15,6 +15,7 @@
  */
 package com.alibaba.nacos.client.config.impl;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
@@ -44,7 +45,7 @@ import org.slf4j.Logger;
  *
  * @author Nacos
  */
-public class ServerListManager {
+public class ServerListManager implements Closeable {
 
     private static final Logger LOGGER = LogUtils.logger(ServerListManager.class);
     private static final String HTTPS = "https://";
@@ -246,7 +247,12 @@ public class ServerListManager {
         }
         return new ServerAddressIterator(serverUrls);
     }
-
+    
+    @Override
+    public void close() throws IOException {
+        TimerService.scheduledExecutor.shutdown();
+    }
+    
     class GetServerListTask implements Runnable {
         final String url;
 

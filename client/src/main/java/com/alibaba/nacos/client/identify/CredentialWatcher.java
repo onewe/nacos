@@ -22,8 +22,9 @@ import org.slf4j.Logger;
 import java.io.*;
 import java.net.URL;
 import java.util.Properties;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Credential Watcher
@@ -32,12 +33,12 @@ import java.util.TimerTask;
  */
 public class CredentialWatcher {
     private static final Logger SpasLogger = LogUtils.logger(CredentialWatcher.class);
-    private static final long REFRESH_INTERVAL = 10 * 1000;
+    private static final long REFRESH_INTERVAL = 10 * 1000L;
 
     private CredentialService serviceInstance;
     private String appName;
     private String propertyPath;
-    private TimerTask watcher;
+    private final ScheduledThreadPoolExecutor executor;
     private boolean stopped;
 
     @SuppressWarnings("PMD.AvoidUseTimerRule")
@@ -45,14 +46,18 @@ public class CredentialWatcher {
         this.appName = appName;
         this.serviceInstance = serviceInstance;
         loadCredential(true);
-        watcher = new TimerTask() {
-            private Timer timer = new Timer(true);
-            private long modified = 0;
-
-            {
-                timer.schedule(this, REFRESH_INTERVAL, REFRESH_INTERVAL);
+        executor = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r);
+                t.setName("com.alibaba.nacos.client.identify.watcher");
+                t.setDaemon(true);
+                return t;
             }
-
+        });
+        
+        executor.scheduleWithFixedDelay(new Runnable() {
+            private long modified = 0;
             @Override
             public void run() {
                 synchronized (this) {
@@ -75,17 +80,17 @@ public class CredentialWatcher {
                     }
                 }
             }
-        };
+        },REFRESH_INTERVAL, REFRESH_INTERVAL, TimeUnit.MILLISECONDS);
     }
 
     public void stop() {
         if (stopped) {
             return;
         }
-        if (watcher != null) {
-            synchronized (watcher) {
-                watcher.cancel();
+        if (executor != null) {
+            synchronized (executor) {
                 stopped = true;
+                executor.shutdown();
             }
         }
         SpasLogger.info("[{}] {} is stopped", appName, this.getClass().getSimpleName());
