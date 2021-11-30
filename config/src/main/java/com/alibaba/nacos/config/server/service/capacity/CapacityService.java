@@ -187,10 +187,16 @@ public class CapacityService {
      * @return the result of update cluster usage.
      */
     public boolean insertAndUpdateClusterUsage(CounterMode counterMode, boolean ignoreQuotaLimit) {
+        // 获取集群的容量配置 也就是查询 group_capacity 表
+        // 通过 group_id 查询
         Capacity capacity = groupCapacityPersistService.getClusterCapacity();
+        // 判断数据库中是否有相关的容量记录
         if (capacity == null) {
+            // 如果没有相关的容量记录则插入初始化数据
+            // 初始化数据中的 Quota、MaxSize、AggrCount、AggrSize默认为 0
             insertGroupCapacity(GroupCapacityPersistService.CLUSTER);
         }
+        // 更新 group_capacity 使用数据
         return updateGroupUsage(counterMode, GroupCapacityPersistService.CLUSTER, PropertyUtil.getDefaultClusterQuota(),
                 ignoreQuotaLimit);
     }
@@ -228,15 +234,24 @@ public class CapacityService {
         groupCapacity.setGroup(group);
         groupCapacity.setQuota(defaultQuota);
         groupCapacity.setGmtModified(now);
+        // 判断模式是否是 INCREMENT 模式, INCREMENT 模式会进行插入数据
         if (CounterMode.INCREMENT == counterMode) {
+            // 判断是否忽略容量限制
             if (ignoreQuotaLimit) {
+                // group_capacity usage 加一
                 return groupCapacityPersistService.incrementUsage(groupCapacity);
             }
             // First update the quota according to the default value. In most cases, it is the default value.
             // The quota field in the default value table is 0
+            //
+            // 第一个条件执行的 sql 是 group_capacity usage 加一 并且 usage 小于 quota(总配额),并且默认 quota(数据库中的) 为0
+            // 第二个条件执行的 sql 是 group_capacity usage 加一 并且 usage 小于 quota(总配额), 并且 quota 不是默认值 0
+            // 这两句话的意思为先更新默认的数据,如果更新不到就更新非默认数据
+            // 因为容量数据要么是默认数据要么就是非默认数据,有且只有一条
             return groupCapacityPersistService.incrementUsageWithDefaultQuotaLimit(groupCapacity)
                     || groupCapacityPersistService.incrementUsageWithQuotaLimit(groupCapacity);
         }
+        // 更新数据如果模式为非 INCREMENT 则把 usage 减1,并且 usage 不能为0
         return groupCapacityPersistService.decrementUsage(groupCapacity);
     }
     
