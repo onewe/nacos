@@ -107,9 +107,12 @@ public class RequestLogAspect {
     @Around(CLIENT_INTERFACE_PUBLISH_SINGLE_CONFIG_RPC)
     public Object interfacePublishSingleRpc(ProceedingJoinPoint pjp, ConfigPublishRequest request, RequestMeta meta)
             throws Throwable {
+        // 获取推送上来的内容 md5
         final String md5 =
                 request.getContent() == null ? null : MD5Utils.md5Hex(request.getContent(), Constants.ENCODE);
+        // 计数器 +1
         MetricsMonitor.getPublishMonitor().incrementAndGet();
+        // 记录日志
         return logClientRequestRpc("publish", pjp, request, meta, request.getDataId(), request.getGroup(),
                 request.getTenant(), md5);
     }
@@ -120,8 +123,11 @@ public class RequestLogAspect {
     @Around(CLIENT_INTERFACE_PUBLISH_SINGLE_CONFIG)
     public Object interfacePublishSingle(ProceedingJoinPoint pjp, HttpServletRequest request,
             HttpServletResponse response, String dataId, String group, String tenant, String content) throws Throwable {
+        // 记录 md5 值
         final String md5 = content == null ? null : MD5Utils.md5Hex(content, Constants.ENCODE);
+        // 计数器 +1
         MetricsMonitor.getPublishMonitor().incrementAndGet();
+        // 记录日志
         return logClientRequest("publish", pjp, request, response, dataId, group, tenant, md5);
     }
     
@@ -150,8 +156,11 @@ public class RequestLogAspect {
     @Around(CLIENT_INTERFACE_GET_CONFIG)
     public Object interfaceGetConfig(ProceedingJoinPoint pjp, HttpServletRequest request, HttpServletResponse response,
             String dataId, String group, String tenant) throws Throwable {
+        // key: dataId + groupId + tenantId
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        // 获取本地缓存的 md5 值
         final String md5 = ConfigCacheService.getContentMd5(groupKey);
+        // 计数器 +1
         MetricsMonitor.getConfigMonitor().incrementAndGet();
         return logClientRequest("get", pjp, request, response, dataId, group, tenant, md5);
     }
