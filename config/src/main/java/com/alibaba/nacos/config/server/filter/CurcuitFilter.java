@@ -82,6 +82,8 @@ public class CurcuitFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse resp = (HttpServletResponse) response;
         
+        // 判断主机是否开放服务
+        // 开放服务只能在本机在集群中,并且选举完毕
         if (!isOpenService) {
             resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "In the node initialization, unable to process any requests at this time");
@@ -91,6 +93,8 @@ public class CurcuitFilter implements Filter {
         try {
             // If an unrecoverable exception occurs on this node, the write request operation shall not be processed
             // This is a very important warning message !!!
+            // 判断是否触发了降级
+            // 如果触发了降级则不响应任何操作
             if (isDowngrading) {
                 resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                         "Unable to process the request at this time: System triggered degradation");
@@ -112,6 +116,7 @@ public class CurcuitFilter implements Filter {
     }
     
     private void listenerSelfInCluster() {
+        // 监听自己,只有在自己处在集群中并且完成了选举之后才能提供服务
         protocol.protocolMetaData().subscribe(Constants.CONFIG_MODEL_RAFT_GROUP, MetadataKey.RAFT_GROUP_MEMBER, o -> {
             if (!(o instanceof ProtocolMetaData.ValueItem)) {
                 return;
@@ -130,6 +135,8 @@ public class CurcuitFilter implements Filter {
     }
     
     private void registerSubscribe() {
+        // 注册订阅
+        // 订阅2个事件 分别是  RaftDbErrorRecoverEvent、RaftDbErrorEvent 事件
         NotifyCenter.registerSubscriber(new SmartSubscriber() {
             
             @Override
