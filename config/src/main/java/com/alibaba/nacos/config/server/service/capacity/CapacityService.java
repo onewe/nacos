@@ -337,36 +337,52 @@ public class CapacityService {
     
     public Capacity getCapacityWithDefault(String group, String tenant) {
         Capacity capacity;
+        // 判断是否是租户
         boolean isTenant = StringUtils.isNotBlank(tenant);
         if (isTenant) {
+            // 获取租户的容量
             capacity = getTenantCapacity(tenant);
         } else {
+            // 获取组的容量
             capacity = getGroupCapacity(group);
         }
+        // 如果数据库中没有数据则返回空
         if (capacity == null) {
             return null;
         }
+        // 获取配额
         Integer quota = capacity.getQuota();
+        // 如果配额是0则使用默认值
         if (quota == 0) {
             if (isTenant) {
+                // 设置租户默认的配额的值
                 capacity.setQuota(PropertyUtil.getDefaultTenantQuota());
             } else {
+                // 判断是否是集群组
                 if (GroupCapacityPersistService.CLUSTER.equals(group)) {
+                    // 设置默认的集群配额
                     capacity.setQuota(PropertyUtil.getDefaultClusterQuota());
                 } else {
+                    // 设置默认的组配额
                     capacity.setQuota(PropertyUtil.getDefaultGroupQuota());
                 }
             }
         }
+        // 获取内容最大限制
         Integer maxSize = capacity.getMaxSize();
+        // 如果为0 则使用默认的内容最大值
         if (maxSize == 0) {
             capacity.setMaxSize(PropertyUtil.getDefaultMaxSize());
         }
+        // 获取最大聚合数量
         Integer maxAggrCount = capacity.getMaxAggrCount();
+        // 如果为0 则使用默认的最大聚合数量
         if (maxAggrCount == 0) {
             capacity.setMaxAggrCount(PropertyUtil.getDefaultMaxAggrCount());
         }
+        // 获取最大聚合内容大小
         Integer maxAggrSize = capacity.getMaxAggrSize();
+        // 如果为0 则使用默认的聚合内容的最大值
         if (maxAggrSize == 0) {
             capacity.setMaxAggrSize(PropertyUtil.getDefaultMaxAggrSize());
         }
@@ -541,17 +557,23 @@ public class CapacityService {
      */
     public boolean insertOrUpdateCapacity(String group, String tenant, Integer quota, Integer maxSize,
             Integer maxAggrCount, Integer maxAggrSize) {
+        // 如果是租户则更新租户容量相关数据
         if (StringUtils.isNotBlank(tenant)) {
             Capacity capacity = tenantCapacityPersistService.getTenantCapacity(tenant);
             if (capacity == null) {
+                // 如果租户没有容量的数据 则先进行初始化
                 return initTenantCapacity(tenant, quota, maxSize, maxAggrCount, maxAggrSize);
             }
+            // 更新租户数据
             return tenantCapacityPersistService.updateTenantCapacity(tenant, quota, maxSize, maxAggrCount, maxAggrSize);
         }
+        // 获取组的容量数据
         Capacity capacity = groupCapacityPersistService.getGroupCapacity(group);
         if (capacity == null) {
+            // 如果组没有容量的数据 则先进行初始化
             return initGroupCapacity(group, quota, maxSize, maxAggrCount, maxAggrSize);
         }
+        // 更新组的数据
         return groupCapacityPersistService.updateGroupCapacity(group, quota, maxSize, maxAggrCount, maxAggrSize);
     }
 }

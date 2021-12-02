@@ -57,6 +57,7 @@ public class CapacityController {
     @GetMapping
     public RestResult<Capacity> getCapacity(HttpServletResponse response, @RequestParam(required = false) String group,
             @RequestParam(required = false) String tenant) {
+        // 组和租户不能同时为空
         if (group == null && tenant == null) {
             RestResult<Capacity> restResult = new RestResult<>();
             response.setStatus(STATUS400);
@@ -75,6 +76,7 @@ public class CapacityController {
         try {
             response.setStatus(STATUS200);
             restResult.setCode(STATUS200);
+            // 数据库查询
             Capacity capacity = capacityService.getCapacityWithDefault(group, tenant);
             if (capacity == null) {
                 LOGGER.warn("[getCapacity] capacity not exist，need init group: {}, tenant: {}", group, tenant);
@@ -101,7 +103,11 @@ public class CapacityController {
             @RequestParam(required = false) String group, @RequestParam(required = false) String tenant,
             @RequestParam(required = false) Integer quota, @RequestParam(required = false) Integer maxSize,
             @RequestParam(required = false) Integer maxAggrCount, @RequestParam(required = false) Integer maxAggrSize) {
+        // 如果组和租户同时为空
+        // 则进行初始化组容量配置
+        // 初始化租户容量配置
         if (StringUtils.isBlank(group) && StringUtils.isBlank(tenant)) {
+            // 初始化
             capacityService.initAllCapacity();
             RestResult<Boolean> restResult = new RestResult<>();
             setFailResult(response, restResult, STATUS400);
@@ -131,6 +137,7 @@ public class CapacityController {
             return restResult;
         }
         try {
+            // 更新或新增租户或者组的容量数据
             boolean insertOrUpdateResult = capacityService
                     .insertOrUpdateCapacity(group, tenant, quota, maxSize, maxAggrCount, maxAggrSize);
             if (insertOrUpdateResult) {
