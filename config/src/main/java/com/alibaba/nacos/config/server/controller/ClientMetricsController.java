@@ -83,11 +83,15 @@ public class ClientMetricsController {
         Loggers.CORE.info("Get cluster config metrics received, ip={},dataId={},group={},tenant={}", ip, dataId, group,
                 tenant);
         Map<String, Object> responseMap = new HashMap<>(3);
+        // 获取集群中的所有成员
         Collection<Member> members = serverMemberManager.allMembers();
         final NacosAsyncRestTemplate nacosAsyncRestTemplate = HttpClientBeanHolder
                 .getNacosAsyncRestTemplate(Loggers.CLUSTER);
         CountDownLatch latch = new CountDownLatch(members.size());
+        // 遍历每个集群中的成员
+        // 发送 http 请求获取 metric
         for (Member member : members) {
+            // http://ip:port/nacos/v1/cs/metrics/current
             String url = HttpUtils
                     .buildUrl(false, member.getAddress(), EnvUtil.getContextPath(), Constants.METRICS_CONTROLLER_PATH,
                             "current");
@@ -118,6 +122,7 @@ public class ClientMetricsController {
                 }
             });
         }
+        // 等待所有成员请求全部返回 最多等待3秒
         try {
             latch.await(3L, TimeUnit.SECONDS);
         } catch (InterruptedException e) {

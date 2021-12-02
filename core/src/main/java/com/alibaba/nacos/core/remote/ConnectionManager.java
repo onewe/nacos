@@ -98,6 +98,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     private ClientConnectionEventListenerRegistry clientConnectionEventListenerRegistry;
     
     public ConnectionManager() {
+        // 把事件注册到专属到发布器中
         NotifyCenter.registerToPublisher(ConnectionLimitRuleChangeEvent.class, NotifyCenter.ringBufferSize);
         NotifyCenter.registerSubscriber(this);
     }
