@@ -142,9 +142,11 @@ public class ClientMetricsController {
             @RequestParam(value = "group", required = false) String group,
             @RequestParam(value = "tenant", required = false) String tenant) {
         Map<String, Object> metrics = new HashMap<>(16);
+        // 通过 ip 获取对应的客户端连接
         List<Connection> connectionsByIp = connectionManager.getConnectionByIp(ip);
         for (Connection connectionByIp : connectionsByIp) {
             try {
+                // 发送获取指标的请求
                 ClientConfigMetricRequest clientMetrics = new ClientConfigMetricRequest();
                 if (StringUtils.isNotBlank(dataId)) {
                     clientMetrics.getMetricsKeys().add(ClientConfigMetricRequest.MetricsKey
@@ -152,7 +154,7 @@ public class ClientMetricsController {
                     clientMetrics.getMetricsKeys().add(ClientConfigMetricRequest.MetricsKey
                             .build(SNAPSHOT_DATA, GroupKey2.getKey(dataId, group, tenant)));
                 }
-                
+                // TODO 这里可以作为一个贡献点 把 request1 更改为 response
                 ClientConfigMetricResponse request1 = (ClientConfigMetricResponse) connectionByIp
                         .request(clientMetrics, 1000L);
                 metrics.putAll(request1.getMetrics());

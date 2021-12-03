@@ -80,6 +80,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     
     /**
      * connection limit rule.
+     * TODO 这里也能作为一个贡献点,因为这在多线程环境下可能会出问题
      */
     private ConnectionLimitRule connectionLimitRule = new ConnectionLimitRule();
     
@@ -98,8 +99,9 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     private ClientConnectionEventListenerRegistry clientConnectionEventListenerRegistry;
     
     public ConnectionManager() {
-        // 把事件注册到专属到发布器中
+        // 把事件注册到专属的发布器中
         NotifyCenter.registerToPublisher(ConnectionLimitRuleChangeEvent.class, NotifyCenter.ringBufferSize);
+        // 注册事件到共享发布器中 事件是 ConnectionLimitRuleChangeEvent
         NotifyCenter.registerSubscriber(this);
     }
     
@@ -110,6 +112,8 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      * @return
      */
     public boolean traced(String clientIp) {
+        // 判断 connectionLimitRule 是否有 MonitorIpList 集合
+        // 并且集合包含指定的 clientIp
         return connectionLimitRule != null && connectionLimitRule.getMonitorIpList() != null && connectionLimitRule
                 .getMonitorIpList().contains(clientIp);
     }
@@ -117,7 +121,12 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     @PostConstruct
     protected void initLimitRue() {
         try {
+            
+            // 从本地加载 data/loader/limitRule 文件
+            // 创建 ConnectionLimitRule 对象
             loadRuleFromLocal();
+            // 注册文件监听器 监听 limitRule 文件
+            // 发生变化刷新 ConnectionLimitRule 对象
             registerFileWatch();
         } catch (Exception e) {
             Loggers.REMOTE.warn("Fail to init limit rue from local ,error= ", e);
@@ -131,6 +140,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      * @return is valid or not.
      */
     public boolean checkValid(String connectionId) {
+        // 判断连接 id 是否有效
         return connections.containsKey(connectionId);
     }
     
@@ -142,19 +152,31 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      */
     public synchronized boolean register(String connectionId, Connection connection) {
         
+        // 判断连接是否已经连接
         if (connection.isConnected()) {
+            // 如果连接集合中包含指定的 id
+            // 则返回 true
             if (connections.containsKey(connectionId)) {
                 return true;
             }
+            // 判断连接是否超过规则中的限制
             if (!checkLimit(connection)) {
+                // 注册失败
                 return false;
             }
+            // 判断是否要跟踪指定连接
             if (traced(connection.getMetaInfo().clientIp)) {
                 connection.setTraced(true);
             }
+            // 放入连接集合
             connections.put(connectionId, connection);
+            // 客户端 ip 对应的计数器 +1
             connectionForClientIp.get(connection.getMetaInfo().clientIp).getAndIncrement();
             
+            //发送事件,通知 subscriber
+            // config 模块就通知 ConfigConnectionEventListener
+            // ConfigConnectionEventListener 不响应 clientConnected
+            // 只响应 clientDisConnected
             clientConnectionEventListenerRegistry.notifyClientConnected(connection);
             Loggers.REMOTE_DIGEST
                     .info("new connection registered successfully, connectionId = {},connection={} ", connectionId,
@@ -166,19 +188,31 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
         
     }
     
+    /**
+     * 判断指定连接的 ip 计数器有没有超过限制规则中的 ip 规则限制.
+     * 或者 应用名限制.
+     * 如果指定的规则中没有 ip 规则限制或者 应用名称限制 则使用默认规则进行检测.
+     * @param connection 连接
+     * @return true it's not over limit but false it's over limit
+     */
     private boolean checkLimit(Connection connection) {
+        // 获取客户端连接 ip
         String clientIp = connection.getMetaInfo().clientIp;
         
+        // 判断来源是否是来自 cluster
         if (connection.getMetaInfo().isClusterSource()) {
+            // 如果不包含此 IP 则放入集合中
             if (!connectionForClientIp.containsKey(clientIp)) {
                 connectionForClientIp.putIfAbsent(clientIp, new AtomicInteger(0));
             }
             return true;
         }
+        // 判断是否超过限制
         if (isOverLimit()) {
             return false;
         }
         
+        // 放入计数器集合
         if (!connectionForClientIp.containsKey(clientIp)) {
             connectionForClientIp.putIfAbsent(clientIp, new AtomicInteger(0));
         }
@@ -187,6 +221,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
         
         if (connectionLimitRule != null) {
             // 1.check rule of specific client ip limit.
+            // 判断计数器的值是否超过规则中指定 ip 的值
             if (connectionLimitRule.getCountLimitPerClientIp().containsKey(clientIp)) {
                 Integer integer = connectionLimitRule.getCountLimitPerClientIp().get(clientIp);
                 if (integer != null && integer >= 0) {
@@ -194,9 +229,12 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
                 }
             }
             // 2.check rule of specific client app limit.
+            // 获取连接名称
             String appName = connection.getMetaInfo().getAppName();
+            // 判断应用名称是否在限制客户端名单中
             if (StringUtils.isNotBlank(appName) && connectionLimitRule.getCountLimitPerClientApp()
                     .containsKey(appName)) {
+                // 判断计数器的值是否超过规则中指定应用名称的值
                 Integer integerApp = connectionLimitRule.getCountLimitPerClientApp().get(appName);
                 if (integerApp != null && integerApp >= 0) {
                     return currentCount.get() < integerApp;
@@ -204,6 +242,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
             }
             
             // 3.check rule of default client ip.
+            // 使用默认规则
             int countLimitPerClientIpDefault = connectionLimitRule.getCountLimitPerClientIpDefault();
             return countLimitPerClientIpDefault <= 0 || currentCount.get() < countLimitPerClientIpDefault;
         }
@@ -218,18 +257,26 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      * @param connectionId connectionId.
      */
     public synchronized void unregister(String connectionId) {
+        // 移除指定的连接
         Connection remove = this.connections.remove(connectionId);
         if (remove != null) {
+            // 获取指定的 连接ip
             String clientIp = remove.getMetaInfo().clientIp;
+            // 获取指定 ip 的计数器
             AtomicInteger atomicInteger = connectionForClientIp.get(clientIp);
             if (atomicInteger != null) {
+                // -1
                 int count = atomicInteger.decrementAndGet();
+                // 负数,说明对应 IP 机器上没有客户端连接了
                 if (count <= 0) {
+                    // 移除计数器
                     connectionForClientIp.remove(clientIp);
                 }
             }
+            // 关闭连接
             remove.close();
             Loggers.REMOTE_DIGEST.info("[{}]Connection unregistered successfully. ", connectionId);
+            // 通知对应的监听器 config 模块会通知 ConfigConnectionEventListener
             clientConnectionEventListenerRegistry.notifyClientDisConnected(remove);
         }
     }
@@ -506,6 +553,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
         Connection connection = getConnection(connectionId);
         
         if (connection != null) {
+            // 判断连接是否是从 sdk 端过来了的
             if (connection.getMetaInfo().isSdkSource()) {
                 ConnectResetRequest connectResetRequest = new ConnectResetRequest();
                 if (StringUtils.isNotBlank(redirectAddress) && redirectAddress.contains(Constants.COLON)) {
@@ -514,8 +562,10 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
                     connectResetRequest.setServerPort(split[1]);
                 }
                 try {
+                    // 发送 ConnectResetRequest 请求
                     connection.request(connectResetRequest, 3000L);
                 } catch (ConnectionAlreadyClosedException e) {
+                    // 发送失败取消注册
                     unregister(connectionId);
                 } catch (Exception e) {
                     Loggers.REMOTE.error("error occurs when expel connection, connectionId: {} ", connectionId, e);
@@ -542,15 +592,20 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      */
     public int currentClientsCount(Map<String, String> filterLabels) {
         int count = 0;
+        // 遍历所有连接
         for (Connection connection : connections.values()) {
+            // 获取每个连接的 metaInfo 中的 标签
             Map<String, String> labels = connection.getMetaInfo().labels;
             boolean disMatchFound = false;
+            // filterLabels 遍历 map 中的 所有 kv
             for (Map.Entry<String, String> entry : filterLabels.entrySet()) {
+                // 判断指定的 label 是否存在对应的连接
                 if (!entry.getValue().equals(labels.get(entry.getKey()))) {
                     disMatchFound = true;
                     break;
                 }
             }
+            // 如果匹配计数器 + 1
             if (!disMatchFound) {
                 count++;
             }
@@ -579,9 +634,14 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      * @return over limit or not.
      */
     private boolean isOverLimit() {
+        // 判断客户端带有 sdk 标签的连接是否超过 指定的连接数
         return connectionLimitRule.countLimit > 0 && currentSdkClientCount() >= connectionLimitRule.getCountLimit();
     }
     
+    /**
+     * 用于响应 ConnectionLimitRuleChangeEvent 事件.
+     * @param event {@link Event}
+     */
     @Override
     public void onEvent(ConnectionLimitRuleChangeEvent event) {
         String limitRule = event.getLimitRule();
@@ -689,20 +749,29 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     }
     
     private synchronized void loadRuleFromLocal() throws Exception {
+        // 获取文件 data/loader/limitRule
         File limitFile = getRuleFile();
+        // 如果文件不存在则创建
         if (!limitFile.exists()) {
             limitFile.createNewFile();
         }
-        
+        // 读取文件
         String ruleContent = DiskUtils.readFile(limitFile);
+        // 判断文件内容是否为空
+        // 如果为空则创建新的 ConnectionLimitRule 对象
+        // 否则使用 Jackson 反序列为 ConnectionLimitRule 对象
         ConnectionLimitRule connectionLimitRule = StringUtils.isBlank(ruleContent) ? new ConnectionLimitRule()
                 : JacksonUtils.toObj(ruleContent, ConnectionLimitRule.class);
         // apply rule.
+        // 应用规则
         if (connectionLimitRule != null) {
             this.connectionLimitRule = connectionLimitRule;
+            // 获取规则中的 ip 地址
             Set<String> monitorIpList = connectionLimitRule.monitorIpList;
             for (Connection connection : this.connections.values()) {
                 String clientIp = connection.getMetaInfo().getClientIp();
+                // 如果客户端连接中的 ip 地址在规则集合内
+                // 则设置对映 ip 的连接 traced 为 true
                 if (!CollectionUtils.isEmpty(monitorIpList) && monitorIpList.contains(clientIp)) {
                     connection.setTraced(true);
                 } else {
@@ -724,6 +793,10 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
         DiskUtils.writeFile(limitFile, JacksonUtils.toJson(limitRule).getBytes(Constants.ENCODE), false);
     }
     
+    /**
+     * 获取 data/loader/limitRule 文件.
+     * @return 返回文件对象
+     */
     private File getRuleFile() {
         File baseDir = new File(EnvUtil.getNacosHome(), "data" + File.separator + "loader" + File.separator);
         if (!baseDir.exists()) {
@@ -734,6 +807,8 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     
     private void registerFileWatch() {
         try {
+            // 注册文件监控器
+            // 监控到 data/loader/limitRule 文件的变动就重新加载 limitRule 文件
             String tpsPath = Paths.get(EnvUtil.getNacosHome(), "data", "loader").toString();
             WatchFileCenter.registerWatcher(tpsPath, new FileWatcher() {
                 @Override
