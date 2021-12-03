@@ -92,8 +92,10 @@ public class MemberUtil {
         Member target = Member.builder().ip(address).port(port).state(NodeState.UP).build();
         Map<String, Object> extendInfo = new HashMap<>(4);
         // The Raft Port information needs to be set by default
+        // 计算 raft 通信端口 如果是 8848 则减去 1000 等于 7848
         extendInfo.put(MemberMetaDataConstants.RAFT_PORT, String.valueOf(calculateRaftPort(target)));
         extendInfo.put(MemberMetaDataConstants.READY_TO_UPGRADE, true);
+        // 设置附加信息
         target.setExtendInfo(extendInfo);
         return target;
     }

@@ -95,7 +95,9 @@ public class AddressServerMemberLookup extends AbstractMemberLookup {
     
     @Override
     public void doStart() throws NacosException {
+        // 最大失败健康检查失败数 12
         this.maxFailCount = Integer.parseInt(EnvUtil.getProperty(HEALTH_CHECK_FAIL_COUNT_PROPERTY, DEFAULT_HEALTH_CHECK_FAIL_COUNT));
+        // 初始化地址系统
         initAddressSys();
         run();
     }
@@ -106,18 +108,23 @@ public class AddressServerMemberLookup extends AbstractMemberLookup {
     }
     
     private void initAddressSys() {
+        // 获取 server domain 域名
+        // address_server_domain
         String envDomainName = System.getenv(ADDRESS_SERVER_DOMAIN_ENV);
         if (StringUtils.isBlank(envDomainName)) {
+            // address.server.domain
             domainName = EnvUtil.getProperty(ADDRESS_SERVER_DOMAIN_PROPERTY, DEFAULT_SERVER_DOMAIN);
         } else {
             domainName = envDomainName;
         }
+        // 获取 server 端口
         String envAddressPort = System.getenv(ADDRESS_SERVER_PORT_ENV);
         if (StringUtils.isBlank(envAddressPort)) {
             addressPort = EnvUtil.getProperty(ADDRESS_SERVER_PORT_PROPERTY, DEFAULT_SERVER_POINT);
         } else {
             addressPort = envAddressPort;
         }
+        // 获取地址
         String envAddressUrl = System.getenv(ADDRESS_SERVER_URL_ENV);
         if (StringUtils.isBlank(envAddressUrl)) {
             addressUrl = EnvUtil.getProperty(ADDRESS_SERVER_URL_PROPERTY, EnvUtil.getContextPath() + "/" + "serverlist");
@@ -137,9 +144,11 @@ public class AddressServerMemberLookup extends AbstractMemberLookup {
         // Repeat three times, successfully jump out
         boolean success = false;
         Throwable ex = null;
+        // 最大重试次数
         int maxRetry = EnvUtil.getProperty(ADDRESS_SERVER_RETRY_PROPERTY, Integer.class, DEFAULT_SERVER_RETRY_TIME);
         for (int i = 0; i < maxRetry; i++) {
             try {
+                // 从指定的 address Server 同步
                 syncFromAddressUrl();
                 success = true;
                 break;

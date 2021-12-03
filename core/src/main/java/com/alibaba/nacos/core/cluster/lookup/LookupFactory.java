@@ -49,14 +49,17 @@ public final class LookupFactory {
      * @throws NacosException NacosException
      */
     public static MemberLookup createLookUp(ServerMemberManager memberManager) throws NacosException {
+        // 判断允许模式是否是单机模式
         if (!EnvUtil.getStandaloneMode()) {
             String lookupType = EnvUtil.getProperty(LOOKUP_MODE_TYPE);
             LookupType type = chooseLookup(lookupType);
+            // 创建对应的 MemberLookup
             LOOK_UP = find(type);
             currentLookupType = type;
         } else {
             LOOK_UP = new StandaloneMemberLookup();
         }
+        // 注入 memberManager
         LOOK_UP.injectMemberManager(memberManager);
         Loggers.CLUSTER.info("Current addressing mode selection : {}", LOOK_UP.getClass().getSimpleName());
         return LOOK_UP;
@@ -107,13 +110,17 @@ public final class LookupFactory {
     }
     
     private static LookupType chooseLookup(String lookupType) {
+        // 判断 type 是否能转换为 LookupType
         if (StringUtils.isNotBlank(lookupType)) {
             LookupType type = LookupType.sourceOf(lookupType);
             if (Objects.nonNull(type)) {
                 return type;
             }
         }
+        // 读取 cluster 配置文件
         File file = new File(EnvUtil.getClusterConfFilePath());
+        // 如果文件存在,或者环境变量中带有 memberList 变量
+        // nacos.member.list
         if (file.exists() || StringUtils.isNotBlank(EnvUtil.getMemberList())) {
             return LookupType.FILE_CONFIG;
         }

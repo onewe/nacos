@@ -76,9 +76,12 @@ public class CommunicationController {
             @RequestParam(value = "tag", required = false) String tag) {
         dataId = dataId.trim();
         group = group.trim();
+        // 从请求头中获取最后修改时间
         String lastModified = request.getHeader(NotifyService.NOTIFY_HEADER_LAST_MODIFIED);
         long lastModifiedTs = StringUtils.isEmpty(lastModified) ? -1 : Long.parseLong(lastModified);
+        // 从请求头中获取处理 ip
         String handleIp = request.getHeader(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP);
+        // 获取 isBeta 请求头
         String isBetaStr = request.getHeader("isBeta");
         if (StringUtils.isNotBlank(isBetaStr) && Boolean.parseBoolean(isBetaStr)) {
             dumpService.dump(dataId, group, tenant, lastModifiedTs, handleIp, true);

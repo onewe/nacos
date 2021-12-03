@@ -116,6 +116,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     /**
      * Address information for the local node.
+     * TODO 这里可以考虑加 volatile 关键字
      */
     private String localAddress;
     
@@ -148,17 +149,24 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     protected void init() throws NacosException {
         Loggers.CORE.info("Nacos-related cluster resource initialization");
+        // 获取默认 server 端口
         this.port = EnvUtil.getProperty(SERVER_PORT_PROPERTY, Integer.class, DEFAULT_SERVER_PORT);
+        // 获取本地 ip 地址
         this.localAddress = InetUtils.getSelfIP() + ":" + port;
+        // 本地地址转换为 member 对象 selfMember
         this.self = MemberUtil.singleParse(this.localAddress);
+        // 设置版本
         this.self.setExtendVal(MemberMetaDataConstants.VERSION, VersionUtils.version);
         
         // init abilities.
+        // 初始化能力
         this.self.setAbilities(initMemberAbilities());
         
         serverList.put(self.getAddress(), self);
         
         // register NodeChangeEvent publisher to NotifyManager
+        // 注册集群事件, 监听本地 ip 地址的变化
+        // 监听集群成员的变化
         registerClusterEvent();
         
         // Initializes the lookup mode
@@ -180,7 +188,11 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     }
     
     private void initAndStartLookup() throws NacosException {
+        // 创建 lookup
         this.lookup = LookupFactory.createLookUp(this);
+        // 是否使用 地址服务器
+        // 也就是说通常情况下可以把节点配置在文件中
+        // 但是也可以放在某个server上
         isUseAddressServer = this.lookup.useAddressServer();
         this.lookup.start();
     }
@@ -199,27 +211,37 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     private void registerClusterEvent() {
         // Register node change events
+        // 注册节点变化事件 MembersChangeEvent 到专属的队列
         NotifyCenter.registerToPublisher(MembersChangeEvent.class,
                 EnvUtil.getProperty(MEMBER_CHANGE_EVENT_QUEUE_SIZE_PROPERTY, Integer.class,
                         DEFAULT_MEMBER_CHANGE_EVENT_QUEUE_SIZE));
         
         // The address information of this node needs to be dynamically modified
         // when registering the IP change of this node
+        // 注册 IPChangeEvent 到共享事件队列
         NotifyCenter.registerSubscriber(new Subscriber<InetUtils.IPChangeEvent>() {
             @Override
             public void onEvent(InetUtils.IPChangeEvent event) {
+                // 如果 ip 变化, 组装新的 ip 地址
                 String newAddress = event.getNewIP() + ":" + port;
+                
                 ServerMemberManager.this.localAddress = newAddress;
+                // 设置环境变量
                 EnvUtil.setLocalAddress(localAddress);
                 
+                // 设置新的ip
                 Member self = ServerMemberManager.this.self;
                 self.setIp(event.getNewIP());
                 
                 String oldAddress = event.getOldIP() + ":" + port;
+                // 移除旧的 ip 地址
                 ServerMemberManager.this.serverList.remove(oldAddress);
+                // 添加新的 ip 地址
                 ServerMemberManager.this.serverList.put(newAddress, self);
                 
+                // 移除旧的 ip 地址
                 ServerMemberManager.this.memberAddressInfos.remove(oldAddress);
+                // 添加新的 ip 地址
                 ServerMemberManager.this.memberAddressInfos.add(newAddress);
             }
             

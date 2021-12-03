@@ -369,7 +369,9 @@ public abstract class DumpService {
      * Add DumpTask to TaskManager, it will execute asynchronously.
      */
     public void dump(String dataId, String group, String tenant, long lastModified, String handleIp, boolean isBeta) {
+        // 生成 groupKey: dataId + group + tenant
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        // 生成 taskKey: dataId + group + tenant + true or false
         String taskKey = String.join("+", dataId, group, tenant, String.valueOf(isBeta));
         dumpTaskMgr.addTask(taskKey, new DumpTask(groupKey, lastModified, handleIp, isBeta));
         DUMP_LOG.info("[dump-task] add task. groupKey={}, taskKey={}", groupKey, taskKey);
