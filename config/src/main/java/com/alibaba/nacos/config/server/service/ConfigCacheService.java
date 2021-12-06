@@ -92,18 +92,26 @@ public class ConfigCacheService {
      */
     public static boolean dump(String dataId, String group, String tenant, String content, long lastModifiedTs,
             String type, String encryptedDataKey) {
+        // group key: dataId + group + tenant
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        // 判断指定的 groupKey 是否在缓存中
+        // 如果在缓存中则从缓存中获取,否则新创建一个 CacheItem 放入到缓存中
         CacheItem ci = makeSure(groupKey, encryptedDataKey, false);
+        // 设置配置文件类型
         ci.setType(type);
+        // 尝试获取 writeLock
         final int lockResult = tryWriteLock(groupKey);
+        // 如果 lockResult 为0 说明指定 groupKey 的 cacheItem 没有在缓存中
         assert (lockResult != 0);
         
+        // 小于0 说明没有获取到 writeLock
         if (lockResult < 0) {
             DUMP_LOG.warn("[dump-error] write lock failed. {}", groupKey);
             return false;
         }
         
         try {
+            // 重算 md5
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
             if (lastModifiedTs < ConfigCacheService.getLastModifiedTs(groupKey)) {
                 DUMP_LOG.warn("[dump-ignore] the content is old. groupKey={}, md5={}, lastModifiedOld={}, "
@@ -111,13 +119,16 @@ public class ConfigCacheService {
                         lastModifiedTs);
                 return true;
             }
+            // 判断当前 md5 值是否与在缓存中的 md5 匹配
             if (md5.equals(ConfigCacheService.getContentMd5(groupKey)) && DiskUtil.targetFile(dataId, group, tenant).exists()) {
                 DUMP_LOG.warn("[dump-ignore] ignore to save cache file. groupKey={}, md5={}, lastModifiedOld={}, "
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
                         lastModifiedTs);
             } else if (!PropertyUtil.isDirectRead()) {
+                // 如果 md5 值与缓存中的 md5 值不一样 则会把内容保存在磁盘上
                 DiskUtil.saveToDisk(dataId, group, tenant, content);
             }
+            // 更新 md5 值
             updateMd5(groupKey, md5, lastModifiedTs, encryptedDataKey);
             return true;
         } catch (IOException ioe) {
@@ -133,6 +144,7 @@ public class ConfigCacheService {
             }
             return false;
         } finally {
+            // 释放锁
             releaseWriteLock(groupKey);
         }
     }

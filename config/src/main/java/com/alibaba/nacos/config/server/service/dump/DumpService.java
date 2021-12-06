@@ -382,7 +382,9 @@ public abstract class DumpService {
      */
     public void dump(String dataId, String group, String tenant, String tag, long lastModified, String handleIp,
             boolean isBeta) {
+        // group key: dataId + group + tenant
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        // task key: dataId + group + tenant + true / false + tag
         String taskKey = String.join("+", dataId, group, tenant, String.valueOf(isBeta), tag);
         dumpTaskMgr.addTask(taskKey, new DumpTask(groupKey, tag, lastModified, handleIp, isBeta));
         DUMP_LOG.info("[dump-task] add task. groupKey={}, taskKey={}", groupKey, taskKey);

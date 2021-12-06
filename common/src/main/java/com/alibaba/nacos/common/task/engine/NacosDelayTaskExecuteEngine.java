@@ -124,10 +124,13 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
     public void addTask(Object key, AbstractDelayTask newTask) {
         lock.lock();
         try {
+            // 判断任务是否存在
             AbstractDelayTask existTask = tasks.get(key);
+            // 如果任务已存在则进行合并
             if (null != existTask) {
                 newTask.merge(existTask);
             }
+            // 假如任务队列
             tasks.put(key, newTask);
         } finally {
             lock.unlock();
@@ -138,12 +141,18 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
      * process tasks in execute engine.
      */
     protected void processTasks() {
+        // 获取所有任务 key
         Collection<Object> keys = getAllTaskKeys();
+        // 遍历所有 key
         for (Object taskKey : keys) {
+            // 从任务列表中获取指定的任务 并从任务列表中移除
             AbstractDelayTask task = removeTask(taskKey);
+            // 如果任务列表中没有任务则继续
             if (null == task) {
                 continue;
             }
+            // 获取该任务的处理器
+            // 处理器需要提前注册
             NacosTaskProcessor processor = getProcessor(taskKey);
             if (null == processor) {
                 getEngineLog().error("processor not found for task, so discarded. " + task);
@@ -151,6 +160,7 @@ public class NacosDelayTaskExecuteEngine extends AbstractNacosTaskExecuteEngine<
             }
             try {
                 // ReAdd task if process failed
+                // 判断是否处理失败, 处理失败则重试
                 if (!processor.process(task)) {
                     retryFailedTask(taskKey, task);
                 }

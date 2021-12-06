@@ -48,23 +48,36 @@ public class DumpAllProcessor implements NacosTaskProcessor {
     
     @Override
     public boolean process(NacosTask task) {
+        // 从数据库中获取最大序列值
         long currentMaxId = persistService.findConfigMaxId();
         long lastMaxId = 0;
         while (lastMaxId < currentMaxId) {
+            // 从数据库中查询大于 lastMaxId 的数据, 相当于就是查询所有了
             Page<ConfigInfoWrapper> page = persistService.findAllConfigInfoFragment(lastMaxId, PAGE_SIZE);
+            // 判断查询的数据是否为空
             if (page != null && page.getPageItems() != null && !page.getPageItems().isEmpty()) {
+                // 遍历查询出来的数据
                 for (ConfigInfoWrapper cf : page.getPageItems()) {
+                    // 获取 id
                     long id = cf.getId();
+                    // 判断 lastMaxId 是否大于 当前数据的 id
+                    // 谁的 id 大就设置谁
                     lastMaxId = Math.max(id, lastMaxId);
+                    // 通过 dataId 判断是否是 com.alibaba.nacos.metadata.aggrIDs
                     if (cf.getDataId().equals(AggrWhitelist.AGGRIDS_METADATA)) {
+                        // 加载 AggrWhitelist 中的正则表达式
                         AggrWhitelist.load(cf.getContent());
                     }
                     
+                    // 通过 dataId 判断是否是 com.alibaba.nacos.metadata.clientIpWhitelist
                     if (cf.getDataId().equals(ClientIpWhiteList.CLIENT_IP_WHITELIST_METADATA)) {
+                        // 加载 aclIp 列表
                         ClientIpWhiteList.load(cf.getContent());
                     }
                     
+                    // 通过 dataId 判断是否是 com.alibaba.nacos.meta.switch
                     if (cf.getDataId().equals(SwitchService.SWITCH_META_DATAID)) {
+                        // 加载 switches
                         SwitchService.load(cf.getContent());
                     }
     
@@ -72,6 +85,7 @@ public class DumpAllProcessor implements NacosTaskProcessor {
                             cf.getLastModified(), cf.getType(), cf.getEncryptedDataKey());
                     
                     final String content = cf.getContent();
+                    // TODO 这里需要优化, 没必要在进行一次 MD5
                     final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
                     LogUtil.DUMP_LOG.info("[dump-all-ok] {}, {}, length={}, md5={}",
                             GroupKey2.getKey(cf.getDataId(), cf.getGroup()), cf.getLastModified(), content.length(),
