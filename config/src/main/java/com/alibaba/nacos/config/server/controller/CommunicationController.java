@@ -83,6 +83,7 @@ public class CommunicationController {
         String handleIp = request.getHeader(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP);
         // 获取 isBeta 请求头
         String isBetaStr = request.getHeader("isBeta");
+        // 进行更新操作, 默认更新配置内容到本地
         if (StringUtils.isNotBlank(isBetaStr) && Boolean.parseBoolean(isBetaStr)) {
             dumpService.dump(dataId, group, tenant, lastModifiedTs, handleIp, true);
         } else {
@@ -97,6 +98,7 @@ public class CommunicationController {
     @GetMapping("/configWatchers")
     public SampleResult getSubClientConfig(@RequestParam("dataId") String dataId, @RequestParam("group") String group,
             @RequestParam(value = "tenant", required = false) String tenant, ModelMap modelMap) {
+        // 判断是否组还是租户
         group = StringUtils.isBlank(group) ? Constants.DEFAULT_GROUP : group;
         // long polling listners.
         SampleResult result = longPollingService.getCollectSubscribleInfo(dataId, group, tenant);

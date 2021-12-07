@@ -94,6 +94,7 @@ public class LongPollingService {
     }
     
     public SampleResult getSubscribleInfo(String dataId, String group, String tenant) {
+        // groupKey: dataId + group + tenant
         String groupKey = GroupKey.getKeyTenant(dataId, group, tenant);
         SampleResult sampleResult = new SampleResult();
         Map<String, String> lisentersGroupkeyStatus = new HashMap<>(50);
@@ -238,10 +239,14 @@ public class LongPollingService {
     public void addLongPollingClient(HttpServletRequest req, HttpServletResponse rsp, Map<String, String> clientMd5Map,
             int probeRequestSize) {
         
+        // 从请求中获取长轮训时间
         String str = req.getHeader(LongPollingService.LONG_POLLING_HEADER);
         String noHangUpFlag = req.getHeader(LongPollingService.LONG_POLLING_NO_HANG_UP_HEADER);
+        // 获取 app 名称
         String appName = req.getHeader(RequestUtil.CLIENT_APPNAME_HEADER);
+        // 获取 Vipserver-Tag 值
         String tag = req.getHeader("Vipserver-Tag");
+        // 获取 fixedDelayTime 开关值, 固定延迟时间
         int delayTime = SwitchService.getSwitchInteger(SwitchService.FIXED_DELAY_TIME, 500);
         
         // Add delay time for LoadBalance, and one response is returned 500 ms in advance to avoid client timeout.

@@ -111,7 +111,7 @@ public class MD5UtilTest {
     
     @Test
     public void testGetClientMd5Map() {
-        
+        // TODO 可以增加个测试分支来覆盖新的协议
         String configKeysString =
                 "test0" + MD5Util.WORD_SEPARATOR_CHAR + "test1" + MD5Util.WORD_SEPARATOR_CHAR + "test2"
                         + MD5Util.LINE_SEPARATOR_CHAR;

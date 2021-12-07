@@ -110,6 +110,9 @@ public class MD5Util {
     }
     
     /**
+     * 这个方法总共兼容2种协议
+     *  dataId,group,md5 老协议
+     *  dataId,group,md5,tenant 新协议
      * Parse the transport protocol, which has two formats (W for field delimiter, L for each data delimiter) old: D w G
      * w MD5 l new: D w G w MD5 w T l.
      *
@@ -143,10 +146,12 @@ public class MD5Util {
                 
                 // If it is the old message, the last digit is MD5. The post-multi-tenant message is tenant
                 if (tmpList.size() == 2) {
+                    // dataId + groupId -> md5
                     String groupKey = GroupKey2.getKey(tmpList.get(0), tmpList.get(1));
                     groupKey = StringPool.get(groupKey);
                     md5Map.put(groupKey, endValue);
                 } else {
+                    // dataId + groupId + tenant -> md5
                     String groupKey = GroupKey2.getKey(tmpList.get(0), tmpList.get(1), endValue);
                     groupKey = StringPool.get(groupKey);
                     md5Map.put(groupKey, tmpList.get(2));
