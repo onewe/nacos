@@ -112,6 +112,7 @@ public class LongPollingService {
         SampleResult sampleResult = new SampleResult();
         Map<String, String> lisentersGroupkeyStatus = new HashMap<>(50);
         
+        // 相当于获取 IP 对应的 订阅配置列表
         for (ClientLongPolling clientLongPolling : allSubs) {
             if (clientLongPolling.ip.equals(clientIp)) {
                 // One ip can have multiple listener.

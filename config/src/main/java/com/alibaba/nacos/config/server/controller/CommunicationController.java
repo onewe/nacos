@@ -128,7 +128,8 @@ public class CommunicationController {
     @GetMapping("/watcherConfigs")
     public SampleResult getSubClientConfigByIp(HttpServletRequest request, HttpServletResponse response,
             @RequestParam("ip") String ip, ModelMap modelMap) {
-        
+        // 获取 dataId + groupId -> md5 集合
+        // 获取 dataId + groupId + tenant -> md5 集合
         SampleResult result = longPollingService.getCollectSubscribleInfoByIp(ip);
         List<Connection> connectionsByIp = connectionManager.getConnectionByIp(ip);
         for (Connection connectionByIp : connectionsByIp) {
