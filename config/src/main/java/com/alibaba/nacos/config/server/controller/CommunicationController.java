@@ -94,6 +94,9 @@ public class CommunicationController {
     
     /**
      * Get client config information of subscriber in local machine.
+     * 返回一个 ip->md5 的集合
+     * 返回指定配置所有ip订阅的md5的集合
+     * 例如: configKey->[ip:md5,ip:md5,ip:md5,....]
      */
     @GetMapping("/configWatchers")
     public SampleResult getSubClientConfig(@RequestParam("dataId") String dataId, @RequestParam("group") String group,
@@ -124,6 +127,8 @@ public class CommunicationController {
     
     /**
      * Get client config listener lists of subscriber in local machine.
+     * 返回指定ip所订阅的所有配置的集合
+     * 例如: ip->[configKey:md5,configKey:md5,configKey:md5,....]
      */
     @GetMapping("/watcherConfigs")
     public SampleResult getSubClientConfigByIp(HttpServletRequest request, HttpServletResponse response,

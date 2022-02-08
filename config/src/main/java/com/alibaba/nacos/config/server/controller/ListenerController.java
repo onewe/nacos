@@ -48,12 +48,20 @@ public class ListenerController {
     
     /**
      * Get subscribe information from client side.
+     * 获取指定 ip 在集群中的所有配置
+     * 假如集群中有3台机器:
+     *  - A
+     *  - B
+     *  - C
+     * 该接口会调用 A,B,C 机器的`watcherConfigs`接口获取[configKey:md5,configKey:md5,configKey:md5,...]集合
+     * 然后进行汇总,返回给客户端 这个接口可以看到每个配置文件的 md5值
      */
     @GetMapping
     public GroupkeyListenserStatus getAllSubClientConfigByIp(@RequestParam("ip") String ip,
             @RequestParam(value = "all", required = false) boolean all,
             @RequestParam(value = "tenant", required = false) String tenant,
             @RequestParam(value = "sampleTime", required = false, defaultValue = "1") int sampleTime, ModelMap modelMap) {
+        // 获取 指定 ip 获取配置集合 ip-> [configKey:md5,configKey:md5,configKey:md5,...]
         SampleResult collectSampleResult = configSubService.getCollectSampleResultByIp(ip, sampleTime);
         GroupkeyListenserStatus gls = new GroupkeyListenserStatus();
         gls.setCollectStatus(200);
@@ -71,6 +79,8 @@ public class ListenerController {
             if (all) {
                 configMd5Status.put(config.getKey(), config.getValue());
             } else {
+                // configKeys = new String[3]{dataId, group, tenant};
+                // 只添加 tenant 为空的配置
                 String[] configKeys = GroupKey2.parseKey(config.getKey());
                 if (StringUtils.isBlank(configKeys[2])) {
                     configMd5Status.put(config.getKey(), config.getValue());
