@@ -71,7 +71,9 @@ public class ClientMetricsController {
     
     /**
      * get client metric.
-     *
+     * 调用集群中的每个节点的 `v1/cs/metrics/current` 接口并将结果进行合并
+     * 因为要获取指定ip地址的指标信息,但是并不知道该ip地址连接到集群中的那一台机器
+     * 所以需要调用集群中的所有机器的接口才能获取接口
      * @param ip client ip .
      * @return ResponseEntity
      */
@@ -135,6 +137,7 @@ public class ClientMetricsController {
     
     /**
      * Get client config listener lists of subscriber in local machine.
+     *
      */
     @GetMapping("/current")
     public Map<String, Object> getClientMetrics(@RequestParam("ip") String ip,

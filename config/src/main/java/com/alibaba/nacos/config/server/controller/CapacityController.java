@@ -54,6 +54,15 @@ public class CapacityController {
         this.capacityService = capacityService;
     }
     
+    /**
+     * 获取容量配额.
+     * 组和租户不能同时为空,并且组为空时租户id不能为空白
+     * 查询相关配额信息,如果没有查询到则进行新增
+     * @param response 响应对象
+     * @param group 组id
+     * @param tenant 租户id
+     * @return 容量相关信息
+     */
     @GetMapping
     public RestResult<Capacity> getCapacity(HttpServletResponse response, @RequestParam(required = false) String group,
             @RequestParam(required = false) String tenant) {
@@ -97,6 +106,9 @@ public class CapacityController {
     
     /**
      * Modify group or capacity of tenant, and init record when capacity information are still initial.
+     * 修改租户或者组的配置限制,存在以下2中情况
+     * - 没有配置限制,则新增配额限制
+     * - 有配额限制,则更新配额限制
      */
     @PostMapping
     public RestResult<Boolean> updateCapacity(HttpServletResponse response,

@@ -68,6 +68,7 @@ public class CommunicationController {
     
     /**
      * Notify the change of config information.
+     * 手动更新节点缓存
      */
     @GetMapping("/dataChange")
     public Boolean notifyConfigInfo(HttpServletRequest request, @RequestParam("dataId") String dataId,
