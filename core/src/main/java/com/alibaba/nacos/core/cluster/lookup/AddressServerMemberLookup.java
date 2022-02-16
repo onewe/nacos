@@ -149,6 +149,8 @@ public class AddressServerMemberLookup extends AbstractMemberLookup {
         for (int i = 0; i < maxRetry; i++) {
             try {
                 // 从指定的 address Server 同步
+                // 相当于调用本机节点的 serverList 接口
+                // 然后 serverList 接口再去调用其他节点的接口
                 syncFromAddressUrl();
                 success = true;
                 break;

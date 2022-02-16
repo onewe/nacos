@@ -47,6 +47,9 @@ public class NacosConfigConfiguration {
         return new NacosWebFilter();
     }
     
+    /**
+     * 判断是否是集群模式并且存储是内置的那种,如果是则所有请求都回路由到 master 节点上.
+     */
     @Conditional(ConditionDistributedEmbedStorage.class)
     @Bean
     public FilterRegistrationBean transferToLeaderRegistration() {
