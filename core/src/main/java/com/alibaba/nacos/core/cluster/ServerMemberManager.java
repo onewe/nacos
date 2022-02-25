@@ -151,7 +151,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
         Loggers.CORE.info("Nacos-related cluster resource initialization");
         // 获取默认 server 端口
         this.port = EnvUtil.getProperty(SERVER_PORT_PROPERTY, Integer.class, DEFAULT_SERVER_PORT);
-        // 获取本地 ip 地址
+        // 获取本地 ip 地址 非 127.0.0.1 地址
         this.localAddress = InetUtils.getSelfIP() + ":" + port;
         // 本地地址转换为 member 对象 selfMember
         this.self = MemberUtil.singleParse(this.localAddress);
