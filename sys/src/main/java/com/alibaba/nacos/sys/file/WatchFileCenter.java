@@ -55,6 +55,7 @@ public class WatchFileCenter {
     
     /**
      * Maximum number of monitored file directories.
+     * 最大任务数量
      */
     private static final int MAX_WATCH_FILE_JOB = Integer.getInteger("nacos.watch-file.max-dirs", 16);
     
@@ -70,6 +71,7 @@ public class WatchFileCenter {
     
     /**
      * The number of directories that are currently monitored.
+     * 当前监听任务数量
      */
     @SuppressWarnings("checkstyle:StaticVariableName")
     private static int NOW_WATCH_JOB_CNT = 0;
@@ -84,16 +86,22 @@ public class WatchFileCenter {
      */
     public static synchronized boolean registerWatcher(final String paths, FileWatcher watcher) throws NacosException {
         checkState();
+        // 判断当前的JOB数量是否等于最大job数量
         if (NOW_WATCH_JOB_CNT == MAX_WATCH_FILE_JOB) {
             return false;
         }
+        // 获取指定的监听job
         WatchDirJob job = MANAGER.get(paths);
+        // 如果为能获取到则新建一个job
         if (job == null) {
             job = new WatchDirJob(paths);
             job.start();
+            // 放入 map 中
             MANAGER.put(paths, job);
+            // 当前 job 数量+1
             NOW_WATCH_JOB_CNT++;
         }
+        // 增加订阅
         job.addSubscribe(watcher);
         return true;
     }
@@ -105,10 +113,15 @@ public class WatchFileCenter {
      * @return deregister is success
      */
     public static synchronized boolean deregisterAllWatcher(final String path) {
+        // 从 map 中获取 job
         WatchDirJob job = MANAGER.get(path);
+        // 判断 map 中是否有指定的job
         if (job != null) {
+            // 关闭 job
             job.shutdown();
+            // 移除 job 映射
             MANAGER.remove(path);
+            // 当前 job 数量-1
             NOW_WATCH_JOB_CNT--;
             return true;
         }
@@ -123,15 +136,19 @@ public class WatchFileCenter {
             return;
         }
         LOGGER.warn("[WatchFileCenter] start close");
+        // 判断 map 集合中的所有 job
         for (Map.Entry<String, WatchDirJob> entry : MANAGER.entrySet()) {
             LOGGER.warn("[WatchFileCenter] start to shutdown this watcher which is watch : " + entry.getKey());
             try {
+                // 依次关闭 job
                 entry.getValue().shutdown();
             } catch (Throwable e) {
                 LOGGER.error("[WatchFileCenter] shutdown has error : ", e);
             }
         }
+        // 清空 map 集合
         MANAGER.clear();
+        // 设置当前数量为 0
         NOW_WATCH_JOB_CNT = 0;
         LOGGER.warn("[WatchFileCenter] already closed");
     }
@@ -144,8 +161,11 @@ public class WatchFileCenter {
      * @return deregister is success
      */
     public static synchronized boolean deregisterWatcher(final String path, final FileWatcher watcher) {
+        // 获取映射关系
         WatchDirJob job = MANAGER.get(path);
+        // 判断 job 是否不为空
         if (job != null) {
+            // job 中移除指定的 watcher
             job.watchers.remove(watcher);
             return true;
         }
@@ -168,17 +188,21 @@ public class WatchFileCenter {
             setName(paths);
             this.paths = paths;
             final Path p = Paths.get(paths);
+            // 只监听目录 如果路径不是目录则跑出移除
             if (!p.toFile().isDirectory()) {
                 throw new IllegalArgumentException("Must be a file directory : " + paths);
             }
-            
+            // 创建一个用于回掉的线程池
             this.callBackExecutor = ExecutorFactory
                     .newSingleExecutorService(new NameThreadFactory("com.alibaba.nacos.sys.file.watch-" + paths));
             
             try {
+                // 获取文件系统的文件监听服务
                 WatchService service = FILE_SYSTEM.newWatchService();
+                // 注册监听 监听事件为 OVERFLOW ENTRY_MODIFY ENTRY_CREATE ENTRY_DELETE
                 p.register(service, StandardWatchEventKinds.OVERFLOW, StandardWatchEventKinds.ENTRY_MODIFY,
                         StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE);
+                // 设置监听服务
                 this.watchService = service;
             } catch (Throwable ex) {
                 throw new NacosException(NacosException.SERVER_ERROR, ex);
@@ -186,11 +210,14 @@ public class WatchFileCenter {
         }
         
         void addSubscribe(final FileWatcher watcher) {
+            // 添加到 watchers 集合
             watchers.add(watcher);
         }
         
         void shutdown() {
+            // 设置 watch 变量为 false
             watch = false;
+            // 关闭线程池
             ThreadUtils.shutdownThreadPool(this.callBackExecutor);
         }
         
@@ -198,12 +225,17 @@ public class WatchFileCenter {
         public void run() {
             while (watch) {
                 try {
+                    // 通过系统监听服务获取 watchKey
                     final WatchKey watchKey = watchService.take();
+                    // 获取系统监听服务获取到到事件集合
                     final List<WatchEvent<?>> events = watchKey.pollEvents();
+                    // 重置
                     watchKey.reset();
+                    // 判断回调线程池是否被关闭
                     if (callBackExecutor.isShutdown()) {
                         return;
                     }
+                    // 判断事件集合是否为空
                     if (events.isEmpty()) {
                         continue;
                     }
