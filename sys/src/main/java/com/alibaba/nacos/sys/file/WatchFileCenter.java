@@ -280,6 +280,7 @@ public class WatchFileCenter {
         }
         
         private void eventOverflow() {
+            // 获取该目录下的所有的文件,每个文件进行单独处理
             File dir = Paths.get(paths).toFile();
             for (File file : Objects.requireNonNull(dir.listFiles())) {
                 // Subdirectories do not participate in listening
