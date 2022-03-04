@@ -118,13 +118,17 @@ public class ClusterRpcClientProxy extends MemberChangeListener {
         Map<String, String> labels = new HashMap<>(2);
         labels.put(RemoteConstants.LABEL_SOURCE, RemoteConstants.LABEL_SOURCE_CLUSTER);
         String memberClientKey = memberClientKey(member);
+        // 创建GRpc连接,如果已经创建过了,则忽略
         RpcClient client = buildRpcClient(type, labels, memberClientKey);
+        // 判断创建的连接那些和客户端的连接类型是否一致
+        // 如果不一致则销毁客户端的连接进行重新创建
         if (!client.getConnectionType().equals(type)) {
             Loggers.CLUSTER.info(",connection type changed,destroy client of member - > : {}", member);
             RpcClientFactory.destroyClient(memberClientKey);
             client = buildRpcClient(type, labels, memberClientKey);
         }
-        
+        // 判断客户端连接是否正在等待初始化
+        // 如果是就进行初始化后启动连接
         if (client.isWaitInitiated()) {
             Loggers.CLUSTER.info("start a new rpc client to member - > : {}", member);
             
@@ -145,7 +149,7 @@ public class ClusterRpcClientProxy extends MemberChangeListener {
                     return CollectionUtils.list(member.getAddress());
                 }
             });
-            
+            // 启动客户端
             client.start();
         }
     }

@@ -265,19 +265,28 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     public boolean update(Member newMember) {
         Loggers.CLUSTER.debug("member information update : {}", newMember);
         
+        // 获取地址
         String address = newMember.getAddress();
+        // 判断服务列表是否包含该地址
+        // 如果不包含则返回 false
         if (!serverList.containsKey(address)) {
             return false;
         }
         
         serverList.computeIfPresent(address, (s, member) -> {
+            // 判断节点是否是 down
+            // 如果为 down 则成员列表中移除该节点地址
             if (NodeState.DOWN.equals(newMember.getState())) {
                 memberAddressInfos.remove(newMember.getAddress());
             }
+            // 判断是否有基础信息发生了变化
             boolean isPublishChangeEvent = MemberUtil.isBasicInfoChanged(newMember, member);
+            // 设置最后刷新事件 为当前事件
             newMember.setExtendVal(MemberMetaDataConstants.LAST_REFRESH_TIME, System.currentTimeMillis());
+            // 更新相关属性
             MemberUtil.copy(newMember, member);
             if (isPublishChangeEvent) {
+                // 发送事件用于通知节点信息发生变化
                 // member basic data changes and all listeners need to be notified
                 notifyMemberChange(member);
             }
