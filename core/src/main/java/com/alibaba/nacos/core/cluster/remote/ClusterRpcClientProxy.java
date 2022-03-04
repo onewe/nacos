@@ -88,19 +88,26 @@ public class ClusterRpcClientProxy extends MemberChangeListener {
         
         //ensure to create client of new members
         for (Member member : members) {
-            
+            // 判断node节点是否支持 GRpc 连接
+            // 如果支持则进行创建 GRpc 客户端
+            // 如果已经存在则无须创建
             if (MemberUtil.isSupportedLongCon(member)) {
                 createRpcClientAndStart(member, ConnectionType.GRPC);
             }
         }
         
         //shutdown and remove old members.
+        // 获取所有的 GRpc 客户端
         Set<Map.Entry<String, RpcClient>> allClientEntrys = RpcClientFactory.getAllClientEntries();
+        // 获取迭代器
         Iterator<Map.Entry<String, RpcClient>> iterator = allClientEntrys.iterator();
+        // 获取节点中支持 GRpc 的节点 key
         List<String> newMemberKeys = members.stream().filter(MemberUtil::isSupportedLongCon)
                 .map(this::memberClientKey).collect(Collectors.toList());
         while (iterator.hasNext()) {
             Map.Entry<String, RpcClient> next1 = iterator.next();
+            // 判断连接的 key 是否在 新的 节点列表中
+            // 如果没有在列表中 则销毁旧的连接
             if (next1.getKey().startsWith("Cluster-") && !newMemberKeys.contains(next1.getKey())) {
                 Loggers.CLUSTER.info("member leave,destroy client of member - > : {}", next1.getKey());
                 RpcClientFactory.getClient(next1.getKey()).shutdown();
