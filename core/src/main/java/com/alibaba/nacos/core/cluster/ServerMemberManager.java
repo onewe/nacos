@@ -525,7 +525,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     
     // Synchronize the metadata information of a node
     // A health check of the target node is also attached
-    
+    // 这个任务会遍历所有节点 把自身的信息给同步过去
     class MemberInfoReportTask extends Task {
         
         private final GenericType<RestResult<String>> reference = new GenericType<RestResult<String>>() {
@@ -557,12 +557,14 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                         .post(url, header, Query.EMPTY, getSelf(), reference.getType(), new Callback<String>() {
                             @Override
                             public void onReceive(RestResult<String> result) {
+                                // 出现低版本的情况,需要进行降级
                                 if (result.getCode() == HttpStatus.NOT_IMPLEMENTED.value()
                                         || result.getCode() == HttpStatus.NOT_FOUND.value()) {
                                     Loggers.CLUSTER
                                             .warn("{} version is too low, it is recommended to upgrade the version : {}",
                                                     target, VersionUtils.version);
                                     Member memberNew = null;
+                                    // 如果扩展信息有版本信息则需要移除版本信息
                                     if (target.getExtendVal(MemberMetaDataConstants.VERSION) != null) {
                                         memberNew = target.copy();
                                         // Clean up remote version info.
@@ -572,6 +574,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                                         Loggers.CLUSTER.warn("{} : Clean up version info,"
                                                 + " target has been downgrade to old version.", memberNew);
                                     }
+                                    // 如果有长连接的能力需要设置为 false
                                     if (target.getAbilities() != null
                                             && target.getAbilities().getRemoteAbility() != null && target.getAbilities()
                                             .getRemoteAbility().isSupportRemoteConnection()) {
@@ -583,14 +586,21 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                                                 .warn("{} : Clear support remote connection flag,target may rollback version ",
                                                         memberNew);
                                     }
+                                    // 更新
                                     if (memberNew != null) {
                                         update(memberNew);
                                     }
                                     return;
                                 }
+                                // 返回 ok 则说明目标节点已经同步了自身的信息了
+                                // 进行成功回调
+                                // 如果这个节点正常成功相应,则代表这个节点是工作正常的
+                                // 如果原先这个节点在本机节点列表里显示为不健康,则需要进行设置为健康状态
                                 if (result.ok()) {
                                     MemberUtil.onSuccess(ServerMemberManager.this, target);
                                 } else {
+                                    // 通信正常,但是这个节点并没有正常同步
+                                    // 那么就代表这个节点可能是不正常的,这里就认为这个节点是失败的
                                     Loggers.CLUSTER.warn("failed to report new info to target node : {}, result : {}",
                                             target.getAddress(), result);
                                     MemberUtil.onFail(ServerMemberManager.this, target);
@@ -599,6 +609,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
                             
                             @Override
                             public void onError(Throwable throwable) {
+                                // 这种失败 基本上就是通信上的失败了
                                 Loggers.CLUSTER.error("failed to report new info to target node : {}, error : {}",
                                         target.getAddress(), ExceptionUtil.getAllExceptionMsg(throwable));
                                 MemberUtil.onFail(ServerMemberManager.this, target, throwable);

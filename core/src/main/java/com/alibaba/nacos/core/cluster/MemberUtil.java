@@ -139,9 +139,14 @@ public class MemberUtil {
      */
     public static void onSuccess(final ServerMemberManager manager, final Member member) {
         final NodeState old = member.getState();
+        // 加入地址列表中
         manager.getMemberAddressInfos().add(member.getAddress());
+        // 设置状态为 up
         member.setState(NodeState.UP);
+        // 设置错误访问次数为 0
         member.setFailAccessCnt(0);
+        // 对比原先的状态和现在的状态是否一致
+        // 如果一致则发送节点变化事件 提醒
         if (!Objects.equals(old, member.getState())) {
             manager.notifyMemberChange(member);
         }
@@ -159,18 +164,26 @@ public class MemberUtil {
      * @param ex     {@link Throwable}
      */
     public static void onFail(final ServerMemberManager manager, final Member member, Throwable ex) {
+        // 把目标节点移除本机机器列表
         manager.getMemberAddressInfos().remove(member.getAddress());
+        // 获取原先节点的状态
         final NodeState old = member.getState();
+        // 设置状态为 SUSPICIOUS 代表可能 crash
         member.setState(NodeState.SUSPICIOUS);
+        // 增加失败访问次数 +1
         member.setFailAccessCnt(member.getFailAccessCnt() + 1);
+        // 获取最大错误访问次数
         int maxFailAccessCnt = EnvUtil.getProperty(MEMBER_FAIL_ACCESS_CNT_PROPERTY, Integer.class, DEFAULT_MEMBER_FAIL_ACCESS_CNT);
         
         // If the number of consecutive failures to access the target node reaches
         // a maximum, or the link request is rejected, the state is directly down
+        // 如果目标节点错误访问次数 大于 配置的最大错误访问次数 则设置此节点状态为 down
+        // 如果目标节点访问错误信息里包含 Connection refused 则设置此节点状态为 down
         if (member.getFailAccessCnt() > maxFailAccessCnt || StringUtils
                 .containsIgnoreCase(ex.getMessage(), TARGET_MEMBER_CONNECT_REFUSE_ERRMSG)) {
             member.setState(NodeState.DOWN);
         }
+        // 判断目标节点的原始状态和更新的状态是否一致 如果一致则进行发送事件通知
         if (!Objects.equals(old, member.getState())) {
             manager.notifyMemberChange(member);
         }
