@@ -544,6 +544,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     }
     
     /**
+     * 让指定的连接进行重连,连到指定的服务端
      * send load request to spefic connetionId.
      *
      * @param connectionId    connection id of client.
@@ -563,6 +564,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
                 }
                 try {
                     // 发送 ConnectResetRequest 请求
+                    // 让客户端连接连接到其他服务器去
                     connection.request(connectResetRequest, 3000L);
                 } catch (ConnectionAlreadyClosedException e) {
                     // 发送失败取消注册

@@ -64,25 +64,34 @@ public class AuthFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        
+        // 判断鉴权是否打开
         if (!authConfigs.isAuthEnabled()) {
             chain.doFilter(request, response);
+            // 鉴权未打开,跳过认证
             return;
         }
         
+        // 获取 request 请求对象
         HttpServletRequest req = (HttpServletRequest) request;
+        // 获取 response 响应对象
         HttpServletResponse resp = (HttpServletResponse) response;
         
+        // 判断是否开启鉴权白名单
         if (authConfigs.isEnableUserAgentAuthWhite()) {
+            // 如果开启鉴权白名单 只要是 UA 头是 Nacos-Server 就跳过鉴权
             String userAgent = WebUtils.getUserAgent(req);
             if (StringUtils.startsWith(userAgent, Constants.NACOS_SERVER_HEADER)) {
                 chain.doFilter(request, response);
                 return;
             }
+            // 判断 server key 和 server value 在配置文件中是否为空
         } else if (StringUtils.isNotBlank(authConfigs.getServerIdentityKey()) && StringUtils
                 .isNotBlank(authConfigs.getServerIdentityValue())) {
+            // 从请求头中获取 identity value
             String serverIdentity = req.getHeader(authConfigs.getServerIdentityKey());
+            // 判断是否为空
             if (StringUtils.isNotBlank(serverIdentity)) {
+                // 校验请求头中获取的 value 是否与再配置文件中配置的 value 是否一致
                 if (authConfigs.getServerIdentityValue().equals(serverIdentity)) {
                     chain.doFilter(request, response);
                     return;
@@ -99,13 +108,16 @@ public class AuthFilter implements Filter {
         
         try {
             
+            // 从缓存中获取 method 对象
             Method method = methodsCache.getMethod(req);
             
+            // 如果为空 则跳过验证
             if (method == null) {
                 chain.doFilter(request, response);
                 return;
             }
             
+            // 方法上获取 secured 注解 并且 判断是否开启鉴权
             if (method.isAnnotationPresent(Secured.class) && authConfigs.isAuthEnabled()) {
                 
                 if (Loggers.AUTH.isDebugEnabled()) {
@@ -113,19 +125,28 @@ public class AuthFilter implements Filter {
                 }
                 
                 Secured secured = method.getAnnotation(Secured.class);
+                // 如果没有开启鉴权则跳过鉴权
                 if (!protocolAuthService.enableAuth(secured)) {
                     chain.doFilter(request, response);
                     return;
                 }
+                
+                // 解析资源对象
                 Resource resource = protocolAuthService.parseResource(req, secured);
+                // 创建认证上下文
                 IdentityContext identityContext = protocolAuthService.parseIdentity(req);
+                // 判断相关用户是否认证通过
                 boolean result = protocolAuthService.validateIdentity(identityContext, resource);
                 if (!result) {
+                    // 鉴权未通过 抛出异常
                     // TODO Get reason of failure
                     throw new AccessException("Validate Identity failed.");
                 }
+                // 从上下文中获取 identityId 放到 request session 中去
                 injectIdentityId(req, identityContext);
+                // 获取 action 判断相关动作是否有权限
                 String action = secured.action().toString();
+                // 判断相关资源的操作是否有权限
                 result = protocolAuthService.validateAuthority(identityContext, new Permission(resource, action));
                 if (!result) {
                     // TODO Get reason of failure
