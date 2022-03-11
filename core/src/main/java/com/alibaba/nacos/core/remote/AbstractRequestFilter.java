@@ -43,6 +43,7 @@ public abstract class AbstractRequestFilter {
     
     @PostConstruct
     public void init() {
+        // 创建对象后先把自己注册到 RequestFilters 集合中
         requestFilters.registerFilter(this);
     }
     

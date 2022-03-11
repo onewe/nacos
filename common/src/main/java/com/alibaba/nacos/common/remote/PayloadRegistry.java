@@ -40,6 +40,7 @@ public class PayloadRegistry {
     static boolean initialized = false;
     
     public static void init() {
+        // 进行包扫描
         scan();
     }
     
@@ -64,12 +65,15 @@ public class PayloadRegistry {
     }
     
     static void register(String type, Class<?> clazz) {
+        // 如果是抽象的则跳过
         if (Modifier.isAbstract(clazz.getModifiers())) {
             return;
         }
+        // 判断是否已经被注册过
         if (REGISTRY_REQUEST.containsKey(type)) {
             throw new RuntimeException(String.format("Fail to register, type:%s ,clazz:%s ", type, clazz.getName()));
         }
+        // 放入 map 中缓存
         REGISTRY_REQUEST.put(type, clazz);
     }
     

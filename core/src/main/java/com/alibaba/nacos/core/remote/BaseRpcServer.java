@@ -41,12 +41,15 @@ public abstract class BaseRpcServer {
      */
     @PostConstruct
     public void start() throws Exception {
+        // 获取 server 名称
         String serverName = getClass().getSimpleName();
         Loggers.REMOTE.info("Nacos {} Rpc server starting at port {}", serverName, getServicePort());
         
+        // 启动 grpc server
         startServer();
     
         Loggers.REMOTE.info("Nacos {} Rpc server started at port {}", serverName, getServicePort());
+        // 注册一个关闭钩子,以便于在关闭时释放资源
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             Loggers.REMOTE.info("Nacos {} Rpc server stopping", serverName);
             try {

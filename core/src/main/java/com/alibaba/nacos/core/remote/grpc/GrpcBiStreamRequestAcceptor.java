@@ -75,23 +75,25 @@ public class GrpcBiStreamRequestAcceptor extends BiRequestStreamGrpc.BiRequestSt
     public StreamObserver<Payload> requestBiStream(StreamObserver<Payload> responseObserver) {
         
         StreamObserver<Payload> streamObserver = new StreamObserver<Payload>() {
-            
+            // 获取 connection id
             final String connectionId = CONTEXT_KEY_CONN_ID.get();
-            
+            // 本地端口
             final Integer localPort = CONTEXT_KEY_CONN_LOCAL_PORT.get();
-            
+            // 远程端口
             final int remotePort = CONTEXT_KEY_CONN_REMOTE_PORT.get();
-            
+            // 远程 ip
             String remoteIp = CONTEXT_KEY_CONN_REMOTE_IP.get();
-            
+            // 客户端 ip
             String clientIp = "";
             
             @Override
             public void onNext(Payload payload) {
-                
+                // 获取客户端 ip
                 clientIp = payload.getMetadata().getClientIp();
+                // 判断是否需要追踪打日志 根据规则进行判断
                 traceDetailIfNecessary(payload);
                 
+                // 初步转换为 request 对象
                 Object parseObj;
                 try {
                     parseObj = GrpcUtils.parse(payload);
@@ -107,22 +109,31 @@ public class GrpcBiStreamRequestAcceptor extends BiRequestStreamGrpc.BiRequestSt
                                     payload.getBody().getValue().toStringUtf8(), payload.getMetadata());
                     return;
                 }
+                // 判断请求类型是否是 ConnectionSetupRequest
                 if (parseObj instanceof ConnectionSetupRequest) {
                     ConnectionSetupRequest setUpRequest = (ConnectionSetupRequest) parseObj;
                     Map<String, String> labels = setUpRequest.getLabels();
+                    // 获取 app 名称
                     String appName = "-";
                     if (labels != null && labels.containsKey(Constants.APPNAME)) {
                         appName = labels.get(Constants.APPNAME);
                     }
                     
+                    // 创建元数据信息
                     ConnectionMeta metaInfo = new ConnectionMeta(connectionId, payload.getMetadata().getClientIp(),
                             remoteIp, remotePort, localPort, ConnectionType.GRPC.getType(),
                             setUpRequest.getClientVersion(), appName, setUpRequest.getLabels());
+                    // 设置租户
                     metaInfo.setTenant(setUpRequest.getTenant());
+                    // 创建连接
                     Connection connection = new GrpcConnection(metaInfo, responseObserver, CONTEXT_KEY_CHANNEL.get());
+                    // 设置能力
                     connection.setAbilities(setUpRequest.getAbilities());
+                    // 判断是否需要拒绝 在启动时期
                     boolean rejectSdkOnStarting = metaInfo.isSdkSource() && !ApplicationUtils.isStarted();
                     
+                    // 如果需要拒绝则关闭掉连接
+                    // 如果不需要拒绝则注册一个连接
                     if (rejectSdkOnStarting || !connectionManager.register(connectionId, connection)) {
                         //Not register to the connection manager if current server is over limit or server is starting.
                         try {
@@ -139,13 +150,18 @@ public class GrpcBiStreamRequestAcceptor extends BiRequestStreamGrpc.BiRequestSt
                         }
                     }
                     
+                    // 判断类型是否是响应类型
                 } else if (parseObj instanceof Response) {
+                    // 强制转换为 response 类型
                     Response response = (Response) parseObj;
+                    // 判断是否需要进行追踪
                     if (connectionManager.traced(clientIp)) {
                         Loggers.REMOTE_DIGEST
                                 .warn("[{}]Receive response of server request  ,response={}", connectionId, response);
                     }
+                    // 进行通知 响应成功
                     RpcAckCallbackSynchronizer.ackNotify(connectionId, response);
+                    // 刷新连接最后活动事件
                     connectionManager.refreshActiveTime(connectionId);
                 } else {
                     Loggers.REMOTE_DIGEST
