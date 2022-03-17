@@ -60,13 +60,17 @@ public class RequestHandlerRegistry implements ApplicationListener<ContextRefres
     
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        // spring 上下文启动的时候获取类型为 RequestHandler 的 map 集合
         Map<String, RequestHandler> beansOfType = event.getApplicationContext().getBeansOfType(RequestHandler.class);
         Collection<RequestHandler> values = beansOfType.values();
+        // 循环遍历
         for (RequestHandler requestHandler : values) {
-            
+            // 获取 class
             Class<?> clazz = requestHandler.getClass();
             boolean skip = false;
+            // 获取该类型的父类 判断是否是 RequestHandler
             while (!clazz.getSuperclass().equals(RequestHandler.class)) {
+                // 如果父类是 object 则跳过循环 设置 skip 为 true
                 if (clazz.getSuperclass().equals(Object.class)) {
                     skip = true;
                     break;
@@ -78,17 +82,24 @@ public class RequestHandlerRegistry implements ApplicationListener<ContextRefres
             }
             
             try {
+                // 获取 RequestHandler 中的 handle 方法
                 Method method = clazz.getMethod("handle", Request.class, RequestMeta.class);
+                // 判断该方法中是有 TpsControl 注解并且 tps 控制配置已经被打开
                 if (method.isAnnotationPresent(TpsControl.class) && TpsControlConfig.isTpsControlEnabled()) {
                     TpsControl tpsControl = method.getAnnotation(TpsControl.class);
                     String pointName = tpsControl.pointName();
+                    // 创建监控对象
                     TpsMonitorPoint tpsMonitorPoint = new TpsMonitorPoint(pointName);
+                    // 注册监控
                     tpsMonitorManager.registerTpsControlPoint(tpsMonitorPoint);
                 }
             } catch (Exception e) {
                 //ignore.
             }
+            // 0 是 request
+            // 1 是 response
             Class tClass = (Class) ((ParameterizedType) clazz.getGenericSuperclass()).getActualTypeArguments()[0];
+            // 放入集合
             registryHandlers.putIfAbsent(tClass.getSimpleName(), requestHandler);
         }
     }

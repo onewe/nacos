@@ -30,6 +30,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Service
 public class GrpcSdkServer extends BaseGrpcServer {
     
+    /**
+     * 默认 sdk-server 端口偏移是 1000
+     * 也就是说 8848 + 1000 = 9848.
+     */
     private static final int PORT_OFFSET = 1000;
     
     @Override

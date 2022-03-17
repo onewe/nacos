@@ -34,6 +34,7 @@ public class PushAckIdGenerator {
      * get server push id.
      */
     public static long getNextId() {
+        // 如果目前 id 的值大于 最大值减去偏移量 则重置 id 值
         if (id.longValue() > Long.MAX_VALUE - ID_PREV_REGEN_OFFSET) {
             id.getAndSet(0L);
         }

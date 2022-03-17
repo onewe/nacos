@@ -30,6 +30,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Service
 public class GrpcClusterServer extends BaseGrpcServer {
     
+    /**
+     * 集群默认端口偏移量为 1001
+     * 如果机器端口是 8848 那么 GRPC 端口则是 9849.
+     */
     private static final int PORT_OFFSET = 1001;
     
     @Override
@@ -39,6 +43,8 @@ public class GrpcClusterServer extends BaseGrpcServer {
     
     @Override
     public ThreadPoolExecutor getRpcExecutor() {
+        // 如果集群 GRPC 线程池 不支持回收核心线程
+        // 那么默认设置为支持回收核心线程
         if (!GlobalExecutor.clusterRpcExecutor.allowsCoreThreadTimeOut()) {
             GlobalExecutor.clusterRpcExecutor.allowCoreThreadTimeOut(true);
         }
