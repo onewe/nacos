@@ -42,8 +42,14 @@ import io.grpc.stub.StreamObserver;
  */
 public class GrpcConnection extends Connection {
     
+    /**
+     * GrpcBiStreamRequestAcceptor#StreamObserver<Payload> responseObserver.
+     */
     private StreamObserver streamObserver;
     
+    /**
+     * netty 中的 channel.
+     */
     private Channel channel;
     
     public GrpcConnection(ConnectionMeta metaInfo, StreamObserver streamObserver, Channel channel) {

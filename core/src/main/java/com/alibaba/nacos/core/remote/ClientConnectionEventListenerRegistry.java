@@ -40,6 +40,8 @@ public class ClientConnectionEventListenerRegistry {
      */
     public void notifyClientConnected(final Connection connection) {
         
+        // 遍历所有的监听器
+        // 目前注册的监听器有: ConfigConnectionEventListener\ConnectionBasedClientManager\RpcAckCallbackInitorOrCleaner
         for (ClientConnectionEventListener clientConnectionEventListener : clientConnectionEventListeners) {
             try {
                 clientConnectionEventListener.clientConnected(connection);

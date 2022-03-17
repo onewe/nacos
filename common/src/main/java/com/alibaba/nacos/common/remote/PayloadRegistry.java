@@ -48,16 +48,20 @@ public class PayloadRegistry {
         if (initialized) {
             return;
         }
-        
+        // 加载 PayloadPackageProvider 所有的实现类型
         ServiceLoader<PayloadPackageProvider> payloadPackages = ServiceLoader.load(PayloadPackageProvider.class);
         Set<String> result = new HashSet<>();
+        // 把需要扫描的包放入到集合中
         for (PayloadPackageProvider payloadPackage : payloadPackages) {
             result.addAll(payloadPackage.getScanPackage());
         }
+        // 遍历需要扫描到 package
         for (String pkg : result) {
+            // 进行类扫描 获取 payload 的子类
             DefaultPackageScan packageScan = new DefaultPackageScan();
             Set<Class<Payload>> subTypesResponse = packageScan.getSubTypesOf(pkg, Payload.class);
             for (Class<?> clazz : subTypesResponse) {
+                // 注册
                 register(clazz.getSimpleName(), clazz);
             }
         }

@@ -155,6 +155,7 @@ public abstract class BaseGrpcServer extends BaseRpcServer {
                         return attrWrapper;
                         
                     }
+                    
                     // 此方法是在请求结束时执行
                     @Override
                     public void transportTerminated(Attributes transportAttrs) {

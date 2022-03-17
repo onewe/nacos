@@ -33,6 +33,7 @@ import javax.annotation.PreDestroy;
 public abstract class BaseRpcServer {
     
     static {
+        // 初始化
         PayloadRegistry.init();
     }
     

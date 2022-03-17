@@ -89,35 +89,52 @@ public class DefaultRequestFuture implements RequestFuture {
     }
     
     public void setResponse(final Response response) {
+        // 设置标识为 true 表示改任务已完成
         isDone = true;
+        // 设置响应值
         this.response = response;
+        // 设置 success 为 true
         this.isSuccess = response.isSuccess();
+        // 判断 timeoutFuture 是否不为空
+        // 如果不为空则取消定时任务
         if (this.timeoutFuture != null) {
             timeoutFuture.cancel(true);
         }
+        
+        // 唤醒同一把锁等待的线程
         synchronized (this) {
             notifyAll();
         }
         
+        // 执行回调
         callBacInvoke();
     }
     
     public void setFailResult(Exception e) {
+        // 设置任务 已经完成
         isDone = true;
+        // 设置任务 失败
         isSuccess = false;
+        // 异常信息赋值
         this.exception = e;
+        // 唤醒等待的线程
         synchronized (this) {
             notifyAll();
         }
         
+        // 执行回调
         callBacInvoke();
     }
     
     private void callBacInvoke() {
+        // 回调不为空
         if (requestCallBack != null) {
+            // 获取回调任务的线程执行器
             if (requestCallBack.getExecutor() != null) {
+                // 使用回调任务的线程执行器执行回调
                 requestCallBack.getExecutor().execute(new CallBackHandler());
             } else {
+                // 同步执行
                 new CallBackHandler().run();
             }
         }
@@ -134,7 +151,9 @@ public class DefaultRequestFuture implements RequestFuture {
     
     @Override
     public Response get() throws InterruptedException {
+        // 未设置超时时间,则一致等待
         synchronized (this) {
+            // 防止被过早唤醒
             while (!isDone) {
                 wait();
             }
@@ -144,6 +163,7 @@ public class DefaultRequestFuture implements RequestFuture {
     
     @Override
     public Response get(long timeout) throws TimeoutException, InterruptedException {
+        // 如果超时时间小于 0 则不进行超时等待
         if (timeout < 0) {
             synchronized (this) {
                 while (!isDone) {
@@ -151,22 +171,30 @@ public class DefaultRequestFuture implements RequestFuture {
                 }
             }
         } else if (timeout > 0) {
+            // 进行超时等待
             long end = System.currentTimeMillis() + timeout;
             long waitTime = timeout;
             synchronized (this) {
+                // 任务未完成 并且超时时间大于0
+                // 防止线程过早被唤醒 循环
                 while (!isDone && waitTime > 0) {
                     wait(waitTime);
+                    // 结束时间 - 当前时间 = 等待时间
                     waitTime = end - System.currentTimeMillis();
                 }
             }
         }
         
+        // 如果任务已经完成
         if (isDone) {
+            // 返回响应
             return response;
         } else {
+            // 如果超时触发器不为空 则触发超时触发器
             if (timeoutInnerTrigger != null) {
                 timeoutInnerTrigger.triggerOnTimeout();
             }
+            // 抛出超时异常
             throw new TimeoutException("request timeout after " + timeout + " milliseconds, requestId=" + requestId);
         }
     }

@@ -177,6 +177,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
             // config 模块就通知 ConfigConnectionEventListener
             // ConfigConnectionEventListener 不响应 clientConnected
             // 只响应 clientDisConnected
+            // 通知回调
             clientConnectionEventListenerRegistry.notifyClientConnected(connection);
             Loggers.REMOTE_DIGEST
                     .info("new connection registered successfully, connectionId = {},connection={} ", connectionId,
