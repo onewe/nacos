@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
+ * 异步转同步.
  * server push ack synchronier.
  *
  * @author liuzunfei
@@ -34,6 +35,11 @@ import java.util.concurrent.TimeoutException;
  */
 public class RpcAckCallbackSynchronizer {
     
+    /**
+     * 有点意思,跳表集合 可以设置驱逐监听器.
+     * 设置集合的最大容量为 1000000 超过此限制之后将会驱逐数据
+     * 这个东西不是 jdk 自带的 而是 Google 的
+     */
     @SuppressWarnings("checkstyle:linelength")
     public static final Map<String, Map<String, DefaultRequestFuture>> CALLBACK_CONTEXT = new ConcurrentLinkedHashMap.Builder<String, Map<String, DefaultRequestFuture>>()
             .maximumWeightedCapacity(1000000)
@@ -45,6 +51,8 @@ public class RpcAckCallbackSynchronizer {
      */
     public static void ackNotify(String connectionId, Response response) {
         
+        // 从回调上下文中获取 对应的 回调容器
+        // 通过 connectionId 获取
         Map<String, DefaultRequestFuture> stringDefaultPushFutureMap = CALLBACK_CONTEXT.get(connectionId);
         if (stringDefaultPushFutureMap == null) {
             
@@ -54,6 +62,7 @@ public class RpcAckCallbackSynchronizer {
             return;
         }
         
+        // 移除 回调容器
         DefaultRequestFuture currentCallback = stringDefaultPushFutureMap.remove(response.getRequestId());
         if (currentCallback == null) {
             
@@ -63,9 +72,11 @@ public class RpcAckCallbackSynchronizer {
             return;
         }
         
+        // 判断响应是否成功
         if (response.isSuccess()) {
             currentCallback.setResponse(response);
         } else {
+            // 响应失败
             currentCallback.setFailResult(new NacosException(response.getErrorCode(), response.getMessage()));
         }
     }

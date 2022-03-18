@@ -45,13 +45,18 @@ public class ServerLoaderInfoRequestHandler extends RequestHandler<ServerLoaderI
     
     @Override
     public ServerLoaderInfoResponse handle(ServerLoaderInfoRequest request, RequestMeta meta) throws NacosException {
+        // 处理 server 负载请求信息
         ServerLoaderInfoResponse serverLoaderInfoResponse = new ServerLoaderInfoResponse();
+        // 加入 server 连接总数指标信息
         serverLoaderInfoResponse.putMetricsValue("conCount", String.valueOf(connectionManager.currentClientsCount()));
         Map<String, String> filter = new HashMap<>(2);
         filter.put(RemoteConstants.LABEL_SOURCE, RemoteConstants.LABEL_SOURCE_SDK);
+        // 加入 sdk 连接数指标信息
         serverLoaderInfoResponse
                 .putMetricsValue("sdkConCount", String.valueOf(connectionManager.currentClientsCount(filter)));
+        // 加入 连接限制规则指标信息
         serverLoaderInfoResponse.putMetricsValue("limitRule", JacksonUtils.toJson(connectionManager.getConnectionLimitRule()));
+        // 加入 系统负载信息
         serverLoaderInfoResponse.putMetricsValue("load", String.valueOf(EnvUtil.getLoad()));
         serverLoaderInfoResponse.putMetricsValue("cpu", String.valueOf(EnvUtil.getCpu()));
         

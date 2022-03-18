@@ -65,6 +65,8 @@ public class GrpcConnection extends Connection {
                 
                 Payload payload = GrpcUtils.convert(request);
                 traceIfNecessary(payload);
+                // 发送请求,如果收到响应 会在 GrpcBiStreamRequestAcceptor 中进行处理
+                // 整个流程是异步操作的
                 streamObserver.onNext(payload);
             }
         } catch (Exception e) {
@@ -90,14 +92,20 @@ public class GrpcConnection extends Connection {
     }
     
     private DefaultRequestFuture sendRequestInner(Request request, RequestCallBack callBack) throws NacosException {
+        // 生成请求的 id 号
         final String requestId = String.valueOf(PushAckIdGenerator.getNextId());
         request.setRequestId(requestId);
         
+        // 组装一个 DefaultRequestFuture 对象 用于异步转同步
         DefaultRequestFuture defaultPushFuture = new DefaultRequestFuture(getMetaInfo().getConnectionId(), requestId,
                 callBack, () -> RpcAckCallbackSynchronizer.clearFuture(getMetaInfo().getConnectionId(), requestId));
-        
+        // 把 future 放入同步器中 CALLBACK_CONTEXT
         RpcAckCallbackSynchronizer.syncCallback(getMetaInfo().getConnectionId(), requestId, defaultPushFuture);
+        
+        // 发送请求
         sendRequestNoAck(request);
+        
+        //返回 future 可以使用 get 方法来体验同步操作
         return defaultPushFuture;
     }
     

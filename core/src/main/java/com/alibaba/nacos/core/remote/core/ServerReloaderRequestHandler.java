@@ -45,17 +45,24 @@ public class ServerReloaderRequestHandler extends RequestHandler<ServerReloadReq
     
     @Override
     public ServerReloadResponse handle(ServerReloadRequest request, RequestMeta meta) throws NacosException {
+        // 处理系统重平衡请求
         ServerReloadResponse response = new ServerReloadResponse();
         Loggers.REMOTE.info("server reload request receive,reload count={},redirectServer={},requestIp={}",
                 request.getReloadCount(), request.getReloadServer(), meta.getClientIp());
+        // 获取 reload 的数量
         int reloadCount = request.getReloadCount();
         Map<String, String> filter = new HashMap<>(2);
         filter.put(RemoteConstants.LABEL_SOURCE, RemoteConstants.LABEL_SOURCE_SDK);
+        // 获取 sdk 连接数量
         int sdkCount = connectionManager.currentClientsCount(filter);
+        
+        // 如果 sdk 连接数量小于 reload 的连接数量 则忽略
         if (sdkCount <= reloadCount) {
             response.setMessage("ignore");
         } else {
+            // 如果 reload 的数量 小于 sdk 连接数量的 90%,则把连接数量调整到 sdk 连接数的 90%
             reloadCount = (int) Math.max(reloadCount, sdkCount * (1 - RemoteUtils.LOADER_FACTOR));
+            // 平衡连接数量
             connectionManager.loadCount(reloadCount, request.getReloadServer());
             response.setMessage("ok");
         }

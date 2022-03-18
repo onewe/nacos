@@ -19,6 +19,7 @@ package com.alibaba.nacos.core.remote.event;
 import com.alibaba.nacos.common.notify.Event;
 
 /**
+ * 目前这个事件没人使用
  * Remoting connection heart beat event.
  *
  * @author xiweng.yy

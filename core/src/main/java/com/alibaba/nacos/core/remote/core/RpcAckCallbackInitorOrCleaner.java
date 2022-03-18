@@ -32,11 +32,16 @@ public class RpcAckCallbackInitorOrCleaner extends ClientConnectionEventListener
     
     @Override
     public void clientConnected(Connection connect) {
+        // 在建立连接后 将会触发 clientConnected 回调
+        // 用于 在 CALLBACK_CONTEXT 创建一个 事件回调容器
+        // 方便后面异步转同步时 使用
         RpcAckCallbackSynchronizer.initContextIfNecessary(connect.getMetaInfo().getConnectionId());
     }
     
     @Override
     public void clientDisConnected(Connection connect) {
+        // 当连接关闭时会触发 clientDisConnected 回调
+        // 用于 CALLBACK_CONTEXT 移除 时间回调容器
         RpcAckCallbackSynchronizer.clearContext(connect.getMetaInfo().getConnectionId());
     }
 }

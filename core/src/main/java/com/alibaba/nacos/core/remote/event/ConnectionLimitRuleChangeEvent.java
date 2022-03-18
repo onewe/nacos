@@ -19,6 +19,7 @@ package com.alibaba.nacos.core.remote.event;
 import com.alibaba.nacos.common.notify.Event;
 
 /**
+ *  规则变化事件,当本地数据发生变化时,将会产生此事件,
  *  connection limit rule change event.
  *  @author zunfei.lzf
  */
