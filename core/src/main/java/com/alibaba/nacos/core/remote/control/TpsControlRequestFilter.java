@@ -50,12 +50,15 @@ public class TpsControlRequestFilter extends AbstractRequestFilter {
         } catch (NacosException e) {
             return null;
         }
-        
+        // 判断处理器方法上是否有 TpsControl 注解 并且 开启了 Tps 控制注解
         if (method.isAnnotationPresent(TpsControl.class) && TpsControlConfig.isTpsControlEnabled()) {
             
+            // 获取注解对象
             TpsControl tpsControl = method.getAnnotation(TpsControl.class);
             
+            // 获取操作类型
             String pointName = tpsControl.pointName();
+            // 获取解析器类数组
             Class[] parsers = tpsControl.parsers();
             List<MonitorKey> monitorKeys = new ArrayList<>();
             monitorKeys.add(new ClientIpMonitorKey(meta.getClientIp()));
