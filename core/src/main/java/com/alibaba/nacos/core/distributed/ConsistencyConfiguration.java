@@ -37,6 +37,7 @@ public class ConsistencyConfiguration {
     
     @Bean(value = "strongAgreementProtocol")
     public CPProtocol strongAgreementProtocol(ServerMemberManager memberManager) throws Exception {
+        // 初始化强一致性协议
         final CPProtocol protocol = getProtocol(CPProtocol.class, () -> new JRaftProtocol(memberManager));
         return protocol;
     }
@@ -45,11 +46,12 @@ public class ConsistencyConfiguration {
         Collection<T> protocols = NacosServiceLoader.load(cls);
         
         // Select only the first implementation
-        
+        // 如果存在多个实现则用第一个实现 否则使用默认实现 jRaft
         Iterator<T> iterator = protocols.iterator();
         if (iterator.hasNext()) {
             return iterator.next();
         } else {
+            // 使用默认实现
             return builder.call();
         }
     }
