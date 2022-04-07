@@ -93,19 +93,25 @@ public class StartingApplicationListener implements NacosApplicationListener {
     
     @Override
     public void environmentPrepared(ConfigurableEnvironment environment) {
+        // 创建工作目录
         makeWorkDir();
         
+        // 注入环境变量
         injectEnvironment(environment);
         
+        // 加载配置
         loadPreProperties(environment);
         
+        // 设置系统配置属性
         initSystemProperty();
     }
     
     @Override
     public void contextPrepared(ConfigurableApplicationContext context) {
+        // 打印集群配置信息
         logClusterConf();
         
+        // 打印启动信息
         logStarting();
     }
     
@@ -118,9 +124,12 @@ public class StartingApplicationListener implements NacosApplicationListener {
     public void started(ConfigurableApplicationContext context) {
         starting = false;
         
+        // 关闭定时打印日志信息的线程池
         closeExecutor();
         
+        // 设置已启动
         ApplicationUtils.setStarted(true);
+        // 判断存储模式
         judgeStorageMode(context.getEnvironment());
     }
     
@@ -130,17 +139,24 @@ public class StartingApplicationListener implements NacosApplicationListener {
     
     @Override
     public void failed(ConfigurableApplicationContext context, Throwable exception) {
+        // 启动失败,结束启动
         starting = false;
         
+        // 创建工作目录 ??
         makeWorkDir();
         
         LOGGER.error("Startup errors : ", exception);
+        // 关闭线程池
         ThreadPoolManager.shutdown();
+        // 关闭文件监听器器
         WatchFileCenter.shutdown();
+        // 关闭消息监听器
         NotifyCenter.shutdown();
         
+        // 关闭用于打印启动信息的线程池
         closeExecutor();
         
+        // 关闭 spring 上下文
         context.close();
         
         LOGGER.error("Nacos failed to start, please see {} for more details.",
@@ -153,9 +169,12 @@ public class StartingApplicationListener implements NacosApplicationListener {
     
     private void loadPreProperties(ConfigurableEnvironment environment) {
         try {
+            // 加载 application.properties
             SOURCES.putAll(EnvUtil.loadProperties(EnvUtil.getApplicationConfFileResource()));
+            // 添加到 spring 的环境上下文
             environment.getPropertySources()
                     .addLast(new OriginTrackedMapPropertySource(NACOS_APPLICATION_CONF, SOURCES));
+            //注册文件监听器 当 application.properties 有变化时则重新加载配置
             registerWatcher();
         } catch (Exception e) {
             throw new NacosRuntimeException(NacosException.SERVER_ERROR, e);
@@ -247,6 +266,7 @@ public class StartingApplicationListener implements NacosApplicationListener {
     private void judgeStorageMode(ConfigurableEnvironment env) {
         
         // External data sources are used by default in cluster mode
+        // 判断是否使用了扩展存储 (mysql)
         boolean useExternalStorage = (DEFAULT_DATABASE.equalsIgnoreCase(env.getProperty(DATASOURCE_PLATFORM_PROPERTY, DEFAULT_DATASOURCE_PLATFORM)));
         
         // must initialize after setUseExternalDB
@@ -254,7 +274,9 @@ public class StartingApplicationListener implements NacosApplicationListener {
         // If this value is set to true in cluster mode, nacos's distributed storage engine is turned on
         // default value is depend on ${nacos.standalone}
         
+        // 未使用扩展存储 (mysql)
         if (!useExternalStorage) {
+            // 判断是否使用内嵌入式存储
             boolean embeddedStorage = EnvUtil.getStandaloneMode() || Boolean.getBoolean("embeddedStorage");
             // If the embedded data source storage is not turned on, it is automatically
             // upgraded to the external data source storage, as before

@@ -43,7 +43,9 @@ public class LoggingApplicationListener implements NacosApplicationListener {
     
     @Override
     public void environmentPrepared(ConfigurableEnvironment environment) {
+        // 判断环境变量里有没有设置 CONFIG_PROPERTY 属性
         if (!environment.containsProperty(CONFIG_PROPERTY)) {
+            // 如果没有设置则默认设置一下
             System.setProperty(CONFIG_PROPERTY, DEFAULT_NACOS_LOGBACK_LOCATION);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("There is no property named \"{}\" in Spring Boot Environment, "
