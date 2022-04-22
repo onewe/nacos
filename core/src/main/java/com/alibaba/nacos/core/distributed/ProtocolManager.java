@@ -121,20 +121,26 @@ public class ProtocolManager extends MemberChangeListener implements DisposableB
     }
     
     private void initCPProtocol() {
+        // 初始化 CP 协议, 默认实现是 jRaft
         ApplicationUtils.getBeanIfExist(CPProtocol.class, protocol -> {
             Class configType = ClassUtils.resolveGenericType(protocol.getClass());
             Config config = (Config) ApplicationUtils.getBean(configType);
+            // 注入配置信息
             injectMembers4CP(config);
+            // 初始化协议
             protocol.init(config);
             ProtocolManager.this.cpProtocol = protocol;
         });
     }
     
     private void injectMembers4CP(Config config) {
+        // 获取自己节点
         final Member selfMember = memberManager.getSelf();
         final String self = selfMember.getIp() + ":" + Integer
                 .parseInt(String.valueOf(selfMember.getExtendVal(MemberMetaDataConstants.RAFT_PORT)));
+        // 获取所有节点
         Set<String> others = toCPMembersInfo(memberManager.allMembers());
+        // 设置节点信息
         config.setMembers(self, others);
     }
     

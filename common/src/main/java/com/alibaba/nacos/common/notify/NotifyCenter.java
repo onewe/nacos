@@ -75,9 +75,11 @@ public class NotifyCenter {
         String shareBufferSizeProperty = "nacos.core.notify.share-buffer-size";
         shareBufferSize = Integer.getInteger(shareBufferSizeProperty, 1024);
         
+        // 获取 EventPublisher 的实现类 SPI 机制
         final Collection<EventPublisher> publishers = NacosServiceLoader.load(EventPublisher.class);
         Iterator<EventPublisher> iterator = publishers.iterator();
         
+        // 默认没有配置 SPI 使用默认实现 DefaultPublisher
         if (iterator.hasNext()) {
             clazz = iterator.next().getClass();
         } else {
@@ -86,7 +88,9 @@ public class NotifyCenter {
         
         DEFAULT_PUBLISHER_FACTORY = (cls, buffer) -> {
             try {
+                // 创建事件推送器
                 EventPublisher publisher = clazz.newInstance();
+                // 初始化
                 publisher.init(cls, buffer);
                 return publisher;
             } catch (Throwable ex) {
@@ -98,7 +102,9 @@ public class NotifyCenter {
         try {
             
             // Create and init DefaultSharePublisher instance.
+            // 创建共享推送器
             INSTANCE.sharePublisher = new DefaultSharePublisher();
+            // 初始化 默认事件队列长度为 1024
             INSTANCE.sharePublisher.init(SlowEvent.class, shareBufferSize);
             
         } catch (Throwable ex) {
@@ -173,21 +179,28 @@ public class NotifyCenter {
     public static void registerSubscriber(final Subscriber consumer, final EventPublisherFactory factory) {
         // If you want to listen to multiple events, you do it separately,
         // based on subclass's subscribeTypes method return list, it can register to publisher.
+        // 判断是否是智能订阅器
         if (consumer instanceof SmartSubscriber) {
+            // 遍历订阅事件集合
             for (Class<? extends Event> subscribeType : ((SmartSubscriber) consumer).subscribeTypes()) {
                 // For case, producer: defaultSharePublisher -> consumer: smartSubscriber.
+                // 如果事件是 SlowEvent 类型的则放入全局共享推送器
                 if (ClassUtils.isAssignableFrom(SlowEvent.class, subscribeType)) {
                     INSTANCE.sharePublisher.addSubscriber(consumer, subscribeType);
                 } else {
                     // For case, producer: defaultPublisher -> consumer: subscriber.
+                    // 添加订阅者
                     addSubscriber(consumer, subscribeType, factory);
                 }
             }
             return;
         }
         
+        // 获取订阅事件类型
         final Class<? extends Event> subscribeType = consumer.subscribeType();
+        // 判断是否是 SlowEvent 的子类型
         if (ClassUtils.isAssignableFrom(SlowEvent.class, subscribeType)) {
+            // 添加到全局推送器中
             INSTANCE.sharePublisher.addSubscriber(consumer, subscribeType);
             return;
         }
@@ -204,16 +217,21 @@ public class NotifyCenter {
      */
     private static void addSubscriber(final Subscriber consumer, Class<? extends Event> subscribeType,
             EventPublisherFactory factory) {
-        
+        // 订阅主题是 事件类型的 className
         final String topic = ClassUtils.getCanonicalName(subscribeType);
+        // 加个锁
         synchronized (NotifyCenter.class) {
             // MapUtils.computeIfAbsent is a unsafe method.
             // 和 map 默认的 computeIfAbsent 方法一样
             // 如果对应的 map 不存在指定的 key 则使用 factory 函数产生一个 publisher
+            // 判断 INSTANCE.publisherMap 集合中是否有指定订阅主题,如果没有则使用 factory 进行创建
             MapUtil.computeIfAbsent(INSTANCE.publisherMap, topic, factory, subscribeType, ringBufferSize);
         }
+        // 从集合中获取推送器
         EventPublisher publisher = INSTANCE.publisherMap.get(topic);
+        // 判断是否是全局共享的推送器
         if (publisher instanceof ShardedEventPublisher) {
+            // 添加订阅者
             ((ShardedEventPublisher) publisher).addSubscriber(consumer, subscribeType);
         } else {
             publisher.addSubscriber(consumer);
@@ -226,18 +244,25 @@ public class NotifyCenter {
      * @param consumer subscriber instance.
      */
     public static void deregisterSubscriber(final Subscriber consumer) {
+        // 判断订阅者是否是 SmartSubscriber
         if (consumer instanceof SmartSubscriber) {
+            // 遍历订阅者所订阅的事件列表
             for (Class<? extends Event> subscribeType : ((SmartSubscriber) consumer).subscribeTypes()) {
+                // 判断事件是否是 SlowEvent
                 if (ClassUtils.isAssignableFrom(SlowEvent.class, subscribeType)) {
+                    // 从全局共享推送器中移除订阅
                     INSTANCE.sharePublisher.removeSubscriber(consumer, subscribeType);
                 } else {
+                    // 移除订阅
                     removeSubscriber(consumer, subscribeType);
                 }
             }
             return;
         }
         
+        // 获取订阅到事件类型
         final Class<? extends Event> subscribeType = consumer.subscribeType();
+        // 判断事件是否是 SlowEvent
         if (ClassUtils.isAssignableFrom(SlowEvent.class, subscribeType)) {
             INSTANCE.sharePublisher.removeSubscriber(consumer, subscribeType);
             return;
@@ -257,15 +282,21 @@ public class NotifyCenter {
      * @return whether remove subscriber successfully or not.
      */
     private static boolean removeSubscriber(final Subscriber consumer, Class<? extends Event> subscribeType) {
-        
+        // 获取订阅主题
         final String topic = ClassUtils.getCanonicalName(subscribeType);
+        // 从推送器集合中通过主题获取推送器
         EventPublisher eventPublisher = INSTANCE.publisherMap.get(topic);
+        // 若未能获取到则直接返回
         if (null == eventPublisher) {
             return false;
         }
+        
+        // 判断事件推送器是否是全局共享推送器 ShardedEventPublisher
         if (eventPublisher instanceof ShardedEventPublisher) {
+            // 移除订阅器
             ((ShardedEventPublisher) eventPublisher).removeSubscriber(consumer, subscribeType);
         } else {
+            // 移除
             eventPublisher.removeSubscriber(consumer);
         }
         return true;
@@ -293,13 +324,16 @@ public class NotifyCenter {
      * @param event     event instance.
      */
     private static boolean publishEvent(final Class<? extends Event> eventType, final Event event) {
+        // 判断事件是否是 SlowEvent 如果是则走全局共享推送器
         if (ClassUtils.isAssignableFrom(SlowEvent.class, eventType)) {
             return INSTANCE.sharePublisher.publish(event);
         }
         
         final String topic = ClassUtils.getCanonicalName(eventType);
         
+        // 通过主题名称获取推送器
         EventPublisher publisher = INSTANCE.publisherMap.get(topic);
+        // 如果推送器不为空 则推送
         if (publisher != null) {
             return publisher.publish(event);
         }

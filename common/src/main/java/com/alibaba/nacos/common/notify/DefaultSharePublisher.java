@@ -80,18 +80,22 @@ public class DefaultSharePublisher extends DefaultPublisher implements ShardedEv
     @Override
     public void receiveEvent(Event event) {
         
+        // 获取当前事件序号
         final long currentEventSequence = event.sequence();
         // get subscriber set based on the slow EventType.
         final Class<? extends SlowEvent> slowEventType = (Class<? extends SlowEvent>) event.getClass();
         
         // Get for Map, the algorithm is O(1).
+        // 从 Map 里获取事件对应的 订阅者集合
         Set<Subscriber> subscribers = subMappings.get(slowEventType);
+        // 如果订阅者为空 则忽略
         if (null == subscribers) {
             LOGGER.debug("[NotifyCenter] No subscribers for slow event {}", slowEventType.getName());
             return;
         }
         
         // Notification single event subscriber
+        // 遍历事件订阅者,挨个通知
         for (Subscriber subscriber : subscribers) {
             // Whether to ignore expiration events
             if (subscriber.ignoreExpireEvent() && lastEventSequence > currentEventSequence) {

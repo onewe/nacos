@@ -63,9 +63,13 @@ public class DefaultPublisher extends Thread implements EventPublisher {
     public void init(Class<? extends Event> type, int bufferSize) {
         setDaemon(true);
         setName("nacos.publisher-" + type.getName());
+        // 设置事件类型
         this.eventType = type;
+        // 设置 队列最大长度
         this.queueMaxSize = bufferSize;
+        // 创建队列
         this.queue = new ArrayBlockingQueue<>(bufferSize);
+        // 启动线程
         start();
     }
     
@@ -99,9 +103,12 @@ public class DefaultPublisher extends Thread implements EventPublisher {
         try {
             
             // This variable is defined to resolve the problem which message overstock in the queue.
+            // 等待次数
             int waitTimes = 60;
             // To ensure that messages are not lost, enable EventHandler when
             // waiting for the first Subscriber to register
+            // 等待订阅事件的消费者订阅,如果等了1分钟都没有订阅事件的消费者订阅则结束循环,直接消费队列中的事件
+            // 但这样会造成事件的丢失(毕竟没有消费者),但容忍1分钟已经是底线了
             for (; ; ) {
                 if (shutdown || hasSubscriber() || waitTimes <= 0) {
                     break;
@@ -110,12 +117,16 @@ public class DefaultPublisher extends Thread implements EventPublisher {
                 waitTimes--;
             }
             
+            // 无限循环
             for (; ; ) {
                 if (shutdown) {
                     break;
                 }
+                // 从任务队列里获取事件任务
                 final Event event = queue.take();
+                // 处理事件
                 receiveEvent(event);
+                // 设置 lastEventSequence 值为当前事件的序列
                 UPDATER.compareAndSet(this, lastEventSequence, Math.max(lastEventSequence, event.sequence()));
             }
         } catch (Throwable ex) {
@@ -173,18 +184,21 @@ public class DefaultPublisher extends Thread implements EventPublisher {
     void receiveEvent(Event event) {
         final long currentEventSequence = event.sequence();
         
+        // 若没有订阅中,该事件被丢弃
         if (!hasSubscriber()) {
             LOGGER.warn("[NotifyCenter] the {} is lost, because there is no subscriber.", event);
             return;
         }
         
         // Notification single event listener
+        // 遍历订阅者
         for (Subscriber subscriber : subscribers) {
             if (!subscriber.scopeMatches(event)) {
                 continue;
             }
             
             // Whether to ignore expiration events
+            // 判断是否忽略过期的事件
             if (subscriber.ignoreExpireEvent() && lastEventSequence > currentEventSequence) {
                 LOGGER.debug("[NotifyCenter] the {} is unacceptable to this subscriber, because had expire",
                         event.getClass());
@@ -193,6 +207,7 @@ public class DefaultPublisher extends Thread implements EventPublisher {
             
             // Because unifying smartSubscriber and subscriber, so here need to think of compatibility.
             // Remove original judge part of codes.
+            // 事件通知
             notifySubscriber(subscriber, event);
         }
     }
@@ -202,9 +217,12 @@ public class DefaultPublisher extends Thread implements EventPublisher {
         
         LOGGER.debug("[NotifyCenter] the {} will received by {}", event, subscriber);
         
+        // 创建通知任务
         final Runnable job = () -> subscriber.onEvent(event);
+        // 判断是否有线程池
         final Executor executor = subscriber.executor();
         
+        // 如果没有配置线程池则同步执行,若配置了线程池则异步执行
         if (executor != null) {
             executor.execute(job);
         } else {

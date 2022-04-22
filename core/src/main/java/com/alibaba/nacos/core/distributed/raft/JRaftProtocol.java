@@ -115,8 +115,10 @@ public class JRaftProtocol extends AbstractConsistencyProtocol<RaftConfig, Reque
     
     @Override
     public void init(RaftConfig config) {
+        // 判断是否已经初始化,防止重复初始化
         if (initialized.compareAndSet(false, true)) {
             this.raftConfig = config;
+            // 注册 RaftEvent 事件到事件通知中心
             NotifyCenter.registerToSharePublisher(RaftEvent.class);
             this.raftServer.init(this.raftConfig);
             this.raftServer.start();
