@@ -62,13 +62,16 @@ import java.util.stream.Collectors;
 public class JRaftUtils {
     
     public static RpcServer initRpcServer(JRaftServer server, PeerId peerId) {
+        // 获取 Grpc factory
         GrpcRaftRpcFactory raftRpcFactory = (GrpcRaftRpcFactory) RpcFactoryHelper.rpcFactory();
+        // 注册类型序列化
         raftRpcFactory.registerProtobufSerializer(Log.class.getName(), Log.getDefaultInstance());
         raftRpcFactory.registerProtobufSerializer(GetRequest.class.getName(), GetRequest.getDefaultInstance());
         raftRpcFactory.registerProtobufSerializer(WriteRequest.class.getName(), WriteRequest.getDefaultInstance());
         raftRpcFactory.registerProtobufSerializer(ReadRequest.class.getName(), ReadRequest.getDefaultInstance());
         raftRpcFactory.registerProtobufSerializer(Response.class.getName(), Response.getDefaultInstance());
         
+        // 注册响应类型
         MarshallerRegistry registry = raftRpcFactory.getMarshallerRegistry();
         registry.registerResponseInstance(Log.class.getName(), Response.getDefaultInstance());
         registry.registerResponseInstance(GetRequest.class.getName(), Response.getDefaultInstance());
@@ -76,10 +79,13 @@ public class JRaftUtils {
         registry.registerResponseInstance(WriteRequest.class.getName(), Response.getDefaultInstance());
         registry.registerResponseInstance(ReadRequest.class.getName(), Response.getDefaultInstance());
         
+        // 创建 grpc Server
         final RpcServer rpcServer = raftRpcFactory.createRpcServer(peerId.getEndpoint());
+        // 添加 raft 请求处理器线程池
         RaftRpcServerFactory.addRaftRequestProcessors(rpcServer, RaftExecutor.getRaftCoreExecutor(),
                 RaftExecutor.getRaftCliServiceExecutor());
-        
+    
+        // 注册请求处理器
         // Deprecated
         rpcServer.registerProcessor(new NacosLogProcessor(server, SerializeFactory.getDefault()));
         // Deprecated

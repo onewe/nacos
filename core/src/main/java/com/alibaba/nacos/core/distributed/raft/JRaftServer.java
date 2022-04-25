@@ -152,63 +152,92 @@ public class JRaftServer {
     
     void init(RaftConfig config) {
         this.raftConfig = config;
+        // 默认使用 HessianSerializer 序列化
         this.serializer = SerializeFactory.getDefault();
         Loggers.RAFT.info("Initializes the Raft protocol, raft-config info : {}", config);
+        // 初始化线程池
         RaftExecutor.init(config);
         
+        // 获取本机节点
         final String self = config.getSelfMember();
         String[] info = InternetAddressUtil.splitIPPortStr(self);
+        // 获取本机 ip 地址
         selfIp = info[0];
+        // 获取本机 端口
         selfPort = Integer.parseInt(info[1]);
+        // 生成本地节点
         localPeerId = PeerId.parsePeer(self);
+        // 创建节点选项
         nodeOptions = new NodeOptions();
         
         // Set the election timeout time. The default is 5 seconds.
+        // 获取默认任期时间  默认为5秒
         int electionTimeout = Math.max(ConvertUtils.toInt(config.getVal(RaftSysConstants.RAFT_ELECTION_TIMEOUT_MS),
                 RaftSysConstants.DEFAULT_ELECTION_TIMEOUT), RaftSysConstants.DEFAULT_ELECTION_TIMEOUT);
-        
+        // 获取默认请求超时时间 默认为5秒
         rpcRequestTimeoutMs = ConvertUtils.toInt(raftConfig.getVal(RaftSysConstants.RAFT_RPC_REQUEST_TIMEOUT_MS),
                 RaftSysConstants.DEFAULT_RAFT_RPC_REQUEST_TIMEOUT_MS);
         
+        // 设置是否共享选举时钟
         nodeOptions.setSharedElectionTimer(true);
+        // 设置是否共享投票时钟
         nodeOptions.setSharedVoteTimer(true);
+        // 设置是否共享 StepDown 时钟
         nodeOptions.setSharedStepDownTimer(true);
+        // 设置是否共享快照时钟
         nodeOptions.setSharedSnapshotTimer(true);
         
+        // 设置任期时间
         nodeOptions.setElectionTimeoutMs(electionTimeout);
+        
+        // 初始化 raft 选项
         RaftOptions raftOptions = RaftOptionsBuilder.initRaftOptions(raftConfig);
+        
         nodeOptions.setRaftOptions(raftOptions);
+        // 开启指标
         // open jraft node metrics record function
         nodeOptions.setEnableMetrics(true);
         
         CliOptions cliOptions = new CliOptions();
         
+        // 初始化 ci 服务
+        // ci 服务可以添加/移除/修改节点
         this.cliService = RaftServiceFactory.createAndInitCliService(cliOptions);
         this.cliClientService = (CliClientServiceImpl) ((CliServiceImpl) this.cliService).getCliClientService();
     }
     
     synchronized void start() {
+        // 判断是否已经启动过
         if (!isStarted) {
             Loggers.RAFT.info("========= The raft protocol is starting... =========");
             try {
                 // init raft group node
                 com.alipay.sofa.jraft.NodeManager raftNodeManager = com.alipay.sofa.jraft.NodeManager.getInstance();
+                // 遍历所有节点
                 for (String address : raftConfig.getMembers()) {
+                    // 解析节点地址
                     PeerId peerId = PeerId.parsePeer(address);
+                    // 添加节点
                     conf.addPeer(peerId);
+                    // 添加节点地址 ip 等信息到 节点管理器中
                     raftNodeManager.addAddress(peerId.getEndpoint());
                 }
+                // 初始化
                 nodeOptions.setInitialConf(conf);
                 
+                // 初始化 rpc 服务器
                 rpcServer = JRaftUtils.initRpcServer(this, localPeerId);
                 
+                // 初始化
                 if (!this.rpcServer.init(null)) {
                     Loggers.RAFT.error("Fail to init [BaseRpcServer].");
                     throw new RuntimeException("Fail to init [BaseRpcServer].");
                 }
                 
                 // Initialize multi raft group service framework
+                // 已启动
                 isStarted = true;
+                
                 createMultiRaftGroup(processors);
                 Loggers.RAFT.info("========= The raft protocol start finished... =========");
             } catch (Exception e) {
@@ -225,33 +254,44 @@ public class JRaftServer {
             return;
         }
         
+        // 拼接路径 ${nacos.home}/data/protocol/raft
         final String parentPath = Paths.get(EnvUtil.getNacosHome(), "data/protocol/raft").toString();
         
         for (RequestProcessor4CP processor : processors) {
+            // 获取处理器分组
             final String groupName = processor.group();
+            // 判断是否包含此分组
             if (multiRaftGroup.containsKey(groupName)) {
                 throw new DuplicateRaftGroupException(groupName);
             }
             
             // Ensure that each Raft Group has its own configuration and NodeOptions
+            // 如果包含,则复制一份儿配置
             Configuration configuration = conf.copy();
             NodeOptions copy = nodeOptions.copy();
+            
+            // 初始化
             JRaftUtils.initDirectory(parentPath, groupName, copy);
             
             // Here, the LogProcessor is passed into StateMachine, and when the StateMachine
             // triggers onApply, the onApply of the LogProcessor is actually called
+            // 创建 nacos 状态机
             NacosStateMachine machine = new NacosStateMachine(this, processor);
             
+            // 设置状态机
             copy.setFsm(machine);
+            // 初始化配置
             copy.setInitialConf(configuration);
             
             // Set snapshot interval, default 1800 seconds
+            // 快照周期 默认 1800 秒
             int doSnapshotInterval = ConvertUtils.toInt(raftConfig.getVal(RaftSysConstants.RAFT_SNAPSHOT_INTERVAL_SECS),
                     RaftSysConstants.DEFAULT_RAFT_SNAPSHOT_INTERVAL_SECS);
             
             // If the business module does not implement a snapshot processor, cancel the snapshot
             doSnapshotInterval = CollectionUtils.isEmpty(processor.loadSnapshotOperate()) ? 0 : doSnapshotInterval;
             
+            // 设置快照周期秒数
             copy.setSnapshotIntervalSecs(doSnapshotInterval);
             Loggers.RAFT.info("create raft group : {}", groupName);
             RaftGroupService raftGroupService = new RaftGroupService(groupName, localPeerId, copy, rpcServer, true);

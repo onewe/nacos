@@ -148,6 +148,7 @@ public class JRaftProtocol extends AbstractConsistencyProtocol<RaftConfig, Reque
                     metaData.load(value);
                     
                     // The metadata information is injected into the metadata information of the node
+                    // 更新元数据
                     injectProtocolMetaData(metaData);
                 }
                 

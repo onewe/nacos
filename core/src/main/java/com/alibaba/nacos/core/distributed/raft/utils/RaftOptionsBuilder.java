@@ -65,39 +65,52 @@ public class RaftOptionsBuilder {
      */
     public static RaftOptions initRaftOptions(RaftConfig config) {
         RaftOptions raftOptions = new RaftOptions();
+        
+        // 设置 raft 读取配置选项
         raftOptions.setReadOnlyOptions(raftReadIndexType(config));
         
+        // 设置每个 rpc 请求最大字节数量
         raftOptions.setMaxByteCountPerRpc(
                 ConvertUtils.toInt(config.getVal(MAX_BYTE_COUNT_PER_RPC), DEFAULT_MAX_BYTE_COUNT_PER_RPC));
         
+        // 设置实体最大值
         raftOptions.setMaxEntriesSize(ConvertUtils.toInt(config.getVal(MAX_ENTRIES_SIZE), DEFAULT_MAX_ENTRIES_SIZE));
         
+        // 设置 body 最大值
         raftOptions.setMaxBodySize(ConvertUtils.toInt(config.getVal(MAX_BODY_SIZE), DEFAULT_MAX_BODY_SIZE));
         
+        // 设置内存缓冲区最大值
         raftOptions.setMaxAppendBufferSize(
                 ConvertUtils.toInt(config.getVal(MAX_APPEND_BUFFER_SIZE), DEFAULT_MAX_APPEND_BUFFER_SIZE));
         
+        // 设置最大选举延迟时间
         raftOptions.setMaxElectionDelayMs(
                 ConvertUtils.toInt(config.getVal(MAX_ELECTION_DELAY_MS), DEFAULT_MAX_ELECTION_DELAY_MS));
         
+        // 设置任期心跳影响因子
         raftOptions.setElectionHeartbeatFactor(
                 ConvertUtils.toInt(config.getVal(ELECTION_HEARTBEAT_FACTOR), DEFAULT_ELECTION_HEARTBEAT_FACTOR));
         
+        // 设置批量应用 默认值 32
         raftOptions.setApplyBatch(ConvertUtils.toInt(config.getVal(APPLY_BATCH), DEFAULT_APPLY_BATCH));
         
+        // 设置是否同步
         raftOptions.setSync(ConvertUtils.toBoolean(config.getVal(SYNC), DEFAULT_SYNC));
         
+        // 设置是否同步原数据
         raftOptions.setSyncMeta(ConvertUtils.toBoolean(config.getVal(SYNC_META), DEFAULT_SYNC_META));
         
         raftOptions.setDisruptorBufferSize(
                 ConvertUtils.toInt(config.getVal(DISRUPTOR_BUFFER_SIZE), DEFAULT_DISRUPTOR_BUFFER_SIZE));
         
+        // 设置是否并行复制
         raftOptions.setReplicatorPipeline(
                 ConvertUtils.toBoolean(config.getVal(REPLICATOR_PIPELINE), DEFAULT_REPLICATOR_PIPELINE));
         
         raftOptions.setMaxReplicatorInflightMsgs(
                 ConvertUtils.toInt(config.getVal(MAX_REPLICATOR_INFLIGHT_MSGS), DEFAULT_MAX_REPLICATOR_INFLIGHT_MSGS));
         
+        // 是否启用日志完整性校验
         raftOptions.setEnableLogEntryChecksum(
                 ConvertUtils.toBoolean(config.getVal(ENABLE_LOG_ENTRY_CHECKSUM), DEFAULT_ENABLE_LOG_ENTRY_CHECKSUM));
         
