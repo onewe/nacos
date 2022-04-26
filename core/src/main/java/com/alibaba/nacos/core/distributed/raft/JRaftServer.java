@@ -217,7 +217,7 @@ public class JRaftServer {
                 for (String address : raftConfig.getMembers()) {
                     // 解析节点地址
                     PeerId peerId = PeerId.parsePeer(address);
-                    // 添加节点
+                    // 添加节点到 group 中
                     conf.addPeer(peerId);
                     // 添加节点地址 ip 等信息到 节点管理器中
                     raftNodeManager.addAddress(peerId.getEndpoint());
@@ -301,6 +301,7 @@ public class JRaftServer {
             machine.setNode(node);
             RouteTable.getInstance().updateConfiguration(groupName, configuration);
             
+            // 注册到自身节点到集群中
             RaftExecutor.executeByCommon(() -> registerSelfToCluster(groupName, localPeerId, configuration));
             
             // Turn on the leader auto refresh for this group

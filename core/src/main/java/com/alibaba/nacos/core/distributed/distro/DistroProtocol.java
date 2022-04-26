@@ -60,11 +60,14 @@ public class DistroProtocol {
     }
     
     private void startDistroTask() {
+        // 判断是否是单机模式,如果是单机模式则不需要此协议
         if (EnvUtil.getStandaloneMode()) {
             isInitialized = true;
             return;
         }
+        // 运行校验任务
         startVerifyTask();
+        // 运行加载任务
         startLoadTask();
     }
     
@@ -85,6 +88,7 @@ public class DistroProtocol {
     }
     
     private void startVerifyTask() {
+        // 运行校验任务
         GlobalExecutor.schedulePartitionDataTimedSync(new DistroVerifyTimedTask(memberManager, distroComponentHolder,
                         distroTaskEngineHolder.getExecuteWorkersManager()),
                 DistroConfig.getInstance().getVerifyIntervalMillis());

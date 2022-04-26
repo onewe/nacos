@@ -745,21 +745,30 @@ public abstract class RpcClient implements Closeable {
     public void asyncRequest(Request request, RequestCallBack callback) throws NacosException {
         int retryTimes = 0;
         
+        // 预期异常
         Exception exceptionToThrow = null;
+        // 当前时间
         long start = System.currentTimeMillis();
+        // 当前重试次数小于默认重试次数并且当前系统时间小于开始时间 + 任务超时时间 则重试
         while (retryTimes < RETRY_TIMES && System.currentTimeMillis() < start + callback.getTimeout()) {
             boolean waitReconnect = false;
             try {
+                // 判断当前链接是否为空 或者 rpcServer 非运行
                 if (this.currentConnection == null || !isRunning()) {
+                    // 等待重连
                     waitReconnect = true;
+                    // 抛出异常
                     throw new NacosException(NacosException.CLIENT_INVALID_PARAM, "Client not connected.");
                 }
+                // 发送 rpc 请求
                 this.currentConnection.asyncRequest(request, callback);
                 return;
             } catch (Exception e) {
+                // 等待重连
                 if (waitReconnect) {
                     try {
                         // wait client to reconnect.
+                        // 等待时长默认为 100ms
                         Thread.sleep(Math.min(100, callback.getTimeout() / 3));
                     } catch (Exception exception) {
                         // Do nothing.
@@ -771,11 +780,14 @@ public abstract class RpcClient implements Closeable {
                 exceptionToThrow = e;
                 
             }
+            // 重试次数 +1
             retryTimes++;
             
         }
         
+        // 重连失败,设置 健康状态为不健康
         if (rpcClientStatus.compareAndSet(RpcClientStatus.RUNNING, RpcClientStatus.UNHEALTHY)) {
+            
             switchServerAsyncOnRequestFail();
         }
         if (exceptionToThrow != null) {

@@ -53,6 +53,7 @@ public class DistroVerifyExecuteTask extends AbstractExecuteTask {
     public void run() {
         for (DistroData each : verifyData) {
             try {
+                // 发送 rpc 请求
                 if (transportAgent.supportCallbackTransport()) {
                     doSyncVerifyDataWithCallback(each);
                 } else {

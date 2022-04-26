@@ -122,13 +122,18 @@ public class DistroClientTransportAgent implements DistroTransportAgent {
     
     @Override
     public void syncVerifyData(DistroData verifyData, String targetServer, DistroCallback callback) {
+        // 判断目标服务器地址是否集群成员的一份子
+        // 如果不是 直接响应成功
         if (isNoExistTarget(targetServer)) {
             callback.onSuccess();
             return;
         }
+        // 创建 请求
         DistroDataRequest request = new DistroDataRequest(verifyData, DataOperation.VERIFY);
+        // 获取 member 信息
         Member member = memberManager.find(targetServer);
         try {
+            
             DistroVerifyCallbackWrapper wrapper = new DistroVerifyCallbackWrapper(targetServer,
                     verifyData.getDistroKey().getResourceKey(), callback, member);
             clusterRpcClientProxy.asyncRequest(member, request, wrapper);

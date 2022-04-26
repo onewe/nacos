@@ -120,7 +120,9 @@ public class JRaftProtocol extends AbstractConsistencyProtocol<RaftConfig, Reque
             this.raftConfig = config;
             // 注册 RaftEvent 事件到事件通知中心
             NotifyCenter.registerToSharePublisher(RaftEvent.class);
+            // 初始化
             this.raftServer.init(this.raftConfig);
+            // 启动
             this.raftServer.start();
             
             // There is only one consumer to ensure that the internal consumption
