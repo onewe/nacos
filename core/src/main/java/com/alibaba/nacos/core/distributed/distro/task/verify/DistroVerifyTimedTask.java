@@ -50,11 +50,15 @@ public class DistroVerifyTimedTask implements Runnable {
     @Override
     public void run() {
         try {
+            // 获取除了自身之外的节点列表
             List<Member> targetServer = serverMemberManager.allMembersWithoutSelf();
             if (Loggers.DISTRO.isDebugEnabled()) {
                 Loggers.DISTRO.debug("server list is: {}", targetServer);
             }
+            // 遍历注册的数据存储类型
+            // com.alibaba.nacos.naming.iplist 和 Nacos:Naming:v2:ClientData
             for (String each : distroComponentHolder.getDataStorageTypes()) {
+                // 数据存储验证
                 verifyForDataStorage(each, targetServer);
             }
         } catch (Exception e) {
@@ -63,12 +67,15 @@ public class DistroVerifyTimedTask implements Runnable {
     }
     
     private void verifyForDataStorage(String type, List<Member> targetServer) {
+        // 通过指定类型获取 distro 协议的数据存储
         DistroDataStorage dataStorage = distroComponentHolder.findDataStorage(type);
+        // 判断存储是否完成初始化
         if (!dataStorage.isFinishInitial()) {
             Loggers.DISTRO.warn("data storage {} has not finished initial step, do not send verify data",
                     dataStorage.getClass().getSimpleName());
             return;
         }
+        // 获取验证数据
         List<DistroData> verifyData = dataStorage.getVerifyData();
         if (null == verifyData || verifyData.isEmpty()) {
             return;

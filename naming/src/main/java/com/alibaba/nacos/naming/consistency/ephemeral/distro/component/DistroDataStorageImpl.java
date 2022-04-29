@@ -86,18 +86,26 @@ public class DistroDataStorageImpl implements DistroDataStorage {
     @Override
     public List<DistroData> getVerifyData() {
         // If upgrade to 2.0.X, do not verify for v1.
+        // 判断是否已经升级到了 2.0 如果升级到了 2.x 则不需要校验
         if (ApplicationUtils.getBean(UpgradeJudgement.class).isUseGrpcFeatures()) {
             return Collections.emptyList();
         }
+        
         Map<String, String> keyChecksums = new HashMap<>(64);
+        
+        // 获取存储中的所有 key 值集合
         for (String key : dataStore.keys()) {
+            // 判断是否是当前节点所负责的服务
             if (!distroMapper.responsible(KeyBuilder.getServiceName(key))) {
                 continue;
             }
+            // 获取服务注册数据
             Datum datum = dataStore.get(key);
             if (datum == null) {
                 continue;
             }
+            
+            
             keyChecksums.put(key, datum.value.getChecksum());
         }
         if (keyChecksums.isEmpty()) {

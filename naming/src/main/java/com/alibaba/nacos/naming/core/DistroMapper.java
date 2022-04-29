@@ -83,23 +83,33 @@ public class DistroMapper extends MemberChangeListener {
     public boolean responsible(String responsibleTag) {
         final List<String> servers = healthyList;
         
+        // 判断 distro 协议是否开启或者是否是单机模式
+        // 如果是未开启 distro 协议 或者是单机模式 默认返回 true
         if (!switchDomain.isDistroEnabled() || EnvUtil.getStandaloneMode()) {
             return true;
         }
         
+        // 判断健康的服务列表是否为空
+        // 如果为空则返回 false
         if (CollectionUtils.isEmpty(servers)) {
             // means distro config is not ready yet
             return false;
         }
         
+        // 获取本地的 ip 地址
         String localAddress = EnvUtil.getLocalAddress();
+        
+        // 如果服务列表中没有本机 ip 地址则返回 true
         int index = servers.indexOf(localAddress);
         int lastIndex = servers.lastIndexOf(localAddress);
         if (lastIndex < 0 || index < 0) {
             return true;
         }
         
+        // 服务名 hash 模 服务列表数量
         int target = distroHash(responsibleTag) % servers.size();
+        
+        // 判断 target 是否在 index 和 lastIndex 范围内
         return target >= index && target <= lastIndex;
     }
     
