@@ -46,6 +46,9 @@ public class Instance extends com.alibaba.nacos.api.naming.pojo.Instance impleme
     @JsonIgnore
     private volatile boolean mockValid = false;
     
+    /**
+     * true 表示跳过健康检测等.
+     */
     private volatile boolean marked = false;
     
     private String tenant;

@@ -304,6 +304,14 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
     
     private List<Instance> updatedIps(Collection<Instance> newInstance, Collection<Instance> oldInstance) {
         
+        // 这段代码啥意思, 总的来说就是
+        // 旧数据 1:a:8080 2:a:8080 3:a:8080
+        // 新数据 1:b:8080 2:a:8080 4:a:8080
+        // 新旧数据对比 变化的是:
+        // 1 变化的是权重 3 节点消失了 4是新增的节点
+        // 有了以上的数据 案例以下代码就没得问题了
+        
+        // 计算新旧集合的交集
         List<Instance> intersects = (List<Instance>) CollectionUtils.intersection(newInstance, oldInstance);
         Map<String, Instance> stringIpAddressMap = new ConcurrentHashMap<>(intersects.size());
         
@@ -315,18 +323,23 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
         Map<String, Instance> updatedInstancesMap = new ConcurrentHashMap<>(newInstance.size());
         Map<String, Instance> newInstancesMap = new ConcurrentHashMap<>(newInstance.size());
         
+        // 遍历旧集合
         for (Instance instance : oldInstance) {
+            // 如果交集中包含,则放入 intersectMap 集合中
             if (stringIpAddressMap.containsKey(instance.getIp() + ":" + instance.getPort())) {
                 intersectMap.put(instance.toString(), 1);
             }
         }
         
+        // 遍历新集合
         for (Instance instance : newInstance) {
+            // 如果交集中包含
             if (stringIpAddressMap.containsKey(instance.getIp() + ":" + instance.getPort())) {
-                
+                // 并且新的集合中也包含 说明新旧2个集合都有这个对象 则不需要更新
                 if (intersectMap.containsKey(instance.toString())) {
                     intersectMap.put(instance.toString(), 2);
                 } else {
+                    // 如果老的集合中没有 则代表是新增的对象 需要更新
                     intersectMap.put(instance.toString(), 1);
                 }
             }
@@ -335,6 +348,7 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
             
         }
         
+        // 遍历交集集合 并且该元素发生改变 在新集合中 则这部分是变化的部分 需要更新
         for (Map.Entry<String, Integer> entry : intersectMap.entrySet()) {
             String key = entry.getKey();
             Integer value = entry.getValue();

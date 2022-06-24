@@ -868,8 +868,10 @@ public class ServiceManager implements RecordListener<Service> {
         putService(service);
         service = getService(service.getNamespaceId(), service.getName());
         service.init();
+        // 设置临时节点监听器
         consistencyService
                 .listen(KeyBuilder.buildInstanceListKey(service.getNamespaceId(), service.getName(), true), service);
+        // 设置永久节点监听器
         consistencyService
                 .listen(KeyBuilder.buildInstanceListKey(service.getNamespaceId(), service.getName(), false), service);
         Loggers.SRV_LOG.info("[NEW-SERVICE] {}", service.toJson());
